@@ -1,0 +1,91 @@
+import security from "./security";
+
+/**
+ * Module pour les appels à l'API
+ */
+
+/**
+ * URL de base de l'API (pour faciliter les changements d'environnement)
+ */
+const API_BASE_URL = "/api";
+
+/**
+ * Récupère les records pour un circuit spécifique
+ *
+ * @param {number} circuitNumber - Numéro du circuit
+ * @returns {Promise<Object>} - Liste des records
+ */
+export const getRecords = async (circuitNumber) => {
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/records.php?parcours=parcours${circuitNumber}`
+        );
+
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return data;
+    } catch (error) {
+        console.error("Erreur lors de la récupération des records:", error);
+        return { records: [] }; // Retourner un tableau vide en cas d'erreur
+    }
+};
+
+/**
+ * Sauvegarde un nouveau record
+ *
+ * @param {Object} recordData - Données du record
+ * @param {number} recordData.parcours - Numéro du circuit
+ * @param {string} recordData.pseudo - Pseudo du joueur
+ * @param {number} recordData.chrono - Temps réalisé (en secondes)
+ * @param {string} recordData.token - Token de sécurité
+ * @returns {Promise<Object>} - Résultat de la sauvegarde
+ */
+export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
+    try {
+        // Convertir le temps en centièmes de secondes (format attendu par l'API)
+        const chronoValue = Math.round(chrono * 100);
+
+        // Générer une clé de sécurité
+        const key = await security.generateSecurityKey(chronoValue, token);
+
+        const formData = new FormData();
+        formData.append("parcours", parcours);
+        formData.append("pseudo", pseudo);
+        formData.append("chrono", chronoValue);
+        formData.append("token", token);
+        formData.append("key", key);
+
+        const response = await fetch(`${API_BASE_URL}/records.php`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return data;
+    } catch (error) {
+        console.error("Erreur lors de la sauvegarde du record:", error);
+        throw error;
+    }
+};
+
+/**
+ * Importe les utilitaires pour les records locaux
+ */
+import localStorage from "./localStorage";
+const { localRecords } = localStorage;
+
+// Export de toutes les fonctions
+export default {
+    getRecords,
+    saveRecord,
+    localRecords,
+};

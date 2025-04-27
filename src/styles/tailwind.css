@@ -1,0 +1,153 @@
+/* 
+ * Fichier principal des styles Tailwind CSS
+ * 
+ * Ce fichier importe les directives Tailwind et définit quelques styles personnalisés
+ * pour l'application "Les rois de la souris".
+ */
+
+/* Directive d'importation des styles de base de Tailwind */
+@tailwind base;
+
+/* Directive d'importation des composants Tailwind */
+@tailwind components;
+
+/* Directive d'importation des utilitaires Tailwind */
+@tailwind utilities;
+
+/* Variables CSS personnalisées */
+:root {
+    --color-primary: #3f51b5;
+    --color-primary-light: #757de8;
+    --color-primary-dark: #002984;
+    --color-secondary: #0a5d0a;
+    --color-error: #d32f2f;
+    --color-warning: #b74400;
+    --color-success: #0a5d0a;
+}
+
+/* Styles de base personnalisés */
+@layer base {
+    html {
+        @apply text-gray-800;
+        font-family: "Nunito", system-ui, sans-serif;
+    }
+
+    body {
+        @apply bg-gray-50;
+        padding-top: 65px; /* Espace pour la navbar fixe */
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        @apply font-bold;
+    }
+
+    h1 {
+        @apply text-2xl md:text-3xl;
+    }
+
+    h2 {
+        @apply text-xl md:text-2xl;
+    }
+
+    a {
+        @apply text-primary-600 hover:underline;
+    }
+}
+
+/* Composants personnalisés */
+@layer components {
+    /* Conteneur principal avec espacement responsive */
+    .container-app {
+        @apply max-w-4xl mx-auto px-4 py-8;
+    }
+
+    /* Carte avec ombre */
+    .card {
+        @apply bg-white rounded-lg shadow-md p-6;
+    }
+
+    /* Animation de pulsation pour les nouveaux records */
+    .pulse-animation {
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.6;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    /* Transitions douces pour les éléments interactifs */
+    .smooth-transition {
+        @apply transition-all duration-300 ease-in-out;
+    }
+}
+
+/* Styles spécifiques pour le curseur personnalisé */
+.cursor-coccinelle {
+    cursor: url("/images/coccinelle.cur"), pointer;
+}
+
+/* Styles spécifiques pour l'intégration avec @micetf/ui */
+.navbar-root {
+    @apply fixed top-0 left-0 right-0 z-50;
+}
+
+/* Styles de circuit pour support des anciens navigateurs */
+.circuit-container {
+    @apply relative w-full overflow-hidden rounded-lg shadow-md;
+    aspect-ratio: 4/3;
+}
+
+/* Supports des navigateurs qui ne comprennent pas aspect-ratio */
+@supports not (aspect-ratio: 4/3) {
+    .circuit-container::before {
+        content: "";
+        float: left;
+        padding-top: 75%; /* 3/4 * 100% */
+    }
+    .circuit-container::after {
+        content: "";
+        display: block;
+        clear: both;
+    }
+}
+
+/* Animation d'entrée pour les éléments qui apparaissent */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Styles pour le chronomètre */
+.timer {
+    @apply bg-white text-primary-600 text-2xl font-bold py-2 px-6 rounded-full shadow-md;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Styles pour les popups */
+.popup-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4;
+    backdrop-filter: blur(2px);
+}

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="Jeu d'entrainement à la manipulation de la souris. Améliore ta dextérité en suivant le parcours avec la souris sans quitter le chemin."
+        />
+        <meta
+            name="keywords"
+            content="souris, psychomotricité fine, TUIC, B2I, jeu, dextérité"
+        />
+        <meta name="theme-color" content="#3f51b5" />
+        <meta name="robots" content="index, follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+        <title>MiCetF - Les rois de la souris</title>
+
+        <!-- Favicon -->
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+        <!-- Polices -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Font Awesome -->
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+            integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+
+        <!-- Canonical URL -->
+        <link rel="canonical" href="https://micetf.fr/souris" />
+    </head>
+    <body>
+        <!-- Point de montage React -->
+        <div id="root">
+            <!-- Spinner de chargement initial (visible avant que React charge) -->
+            <div
+                style="
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    flex-direction: column;
+                "
+            >
+                <div
+                    style="
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #3f51b5;
+                        border-radius: 50%;
+                        width: 50px;
+                        height: 50px;
+                        animation: spin 1s linear infinite;
+                    "
+                ></div>
+                <p
+                    style="
+                        margin-top: 20px;
+                        font-family: &quot;Nunito&quot;, sans-serif;
+                        color: #3f51b5;
+                    "
+                >
+                    Chargement de l'application...
+                </p>
+            </div>
+
+            <style>
+                @keyframes spin {
+                    0% {
+                        transform: rotate(0deg);
+                    }
+                    100% {
+                        transform: rotate(360deg);
+                    }
+                }
+                body {
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f5f7fa;
+                    font-family: "Nunito", sans-serif;
+                }
+            </style>
+        </div>
+
+        <!-- Message pour JavaScript désactivé -->
+        <noscript>
+            <div
+                style="
+                    background-color: #d32f2f;
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                    font-family: &quot;Nunito&quot;, sans-serif;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 9999;
+                "
+            >
+                <h1>
+                    Vous devez activer JavaScript pour utiliser cette
+                    application
+                </h1>
+                <p>
+                    Cette application requiert JavaScript pour fonctionner
+                    correctement. Veuillez l'activer dans les paramètres de
+                    votre navigateur.
+                </p>
+                <p>
+                    Si vous ne pouvez pas activer JavaScript, consultez la
+                    <a
+                        href="https://micetf.fr"
+                        style="color: white; text-decoration: underline"
+                        >page d'accueil de MiCetF</a
+                    >
+                    pour découvrir d'autres ressources.
+                </p>
+            </div>
+        </noscript>
+
+        <!-- Détection des anciens navigateurs -->
+        <script>
+            // Vérification de base pour les navigateurs trop anciens qui ne supportent pas ES6
+            try {
+                // Test ES6 features
+                eval(
+                    "const test = () => {}; class TestClass {}; new Promise(() => {});"
+                );
+            } catch (e) {
+                document.getElementById("root").innerHTML = `
+        <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+          <h1 style="color: #d32f2f;">Navigateur non supporté</h1>
+          <p>Votre navigateur est trop ancien pour exécuter cette application.</p>
+          <p>Veuillez mettre à jour votre navigateur vers une version plus récente ou essayer un autre navigateur comme Chrome, Firefox, Edge ou Safari.</p>
+        </div>
+      `;
+            }
+        </script>
+
+        <!-- Script principal de l'application (injecté par Vite) -->
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+</html>
