@@ -19,15 +19,23 @@ export const localRecords = {
 
     /**
      * Sauvegarde un record local
-     * @param {number} parcours - Numéro du parcours
-     * @param {number} chrono - Temps réalisé (en secondes)
+     * @param {number|string} parcours - Numéro du parcours
+     * @param {number|string} chrono - Temps réalisé (en secondes)
      * @returns {boolean} - true si c'est un nouveau record, false sinon
      */
     saveRecord: (parcours, chrono) => {
         let records = localRecords.init();
 
-        if (!records[parcours] || records[parcours] > chrono) {
-            records[parcours] = chrono;
+        // S'assurer que les deux valeurs sont des nombres pour la comparaison
+        const oldRecord = parseFloat(records[parcours] || Infinity);
+        const newTime = parseFloat(chrono);
+
+        // S'assurer que les valeurs sont valides
+        if (isNaN(newTime)) return false;
+
+        // Pour un jeu de vitesse, un temps plus PETIT est meilleur
+        if (newTime < oldRecord) {
+            records[parcours] = newTime; // Stocker comme nombre
             localStorage.setItem("sourisRecords", JSON.stringify(records));
             return true; // Nouveau record
         }

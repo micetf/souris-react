@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import imageUtils from "../utils/imageProcessing";
 
 /**
  * Hook personnalisé pour gérer la logique du jeu
@@ -19,6 +20,9 @@ const useGame = (bitmap) => {
     const timerRef = useRef(null);
     const lastPositionRef = useRef([0, 0]);
     const requestAnimationFrameRef = useRef(null);
+
+    // Tolérance pour la détection des sorties de route (en pixels)
+    const pathTolerance = 3;
 
     // Fonction de mise à jour du chronomètre
     const updateTimer = useCallback(() => {
@@ -105,7 +109,7 @@ const useGame = (bitmap) => {
     );
 
     /**
-     * Mettre à jour la position et vérifier les collisions
+     * Mettre à jour la position et vérifier les collisions avec tolérance
      *
      * @param {number} x - Position X de la souris
      * @param {number} y - Position Y de la souris
@@ -133,39 +137,31 @@ const useGame = (bitmap) => {
             lastPositionRef.current = [x, y];
 
             // Vérifier si on est en dehors des limites du bitmap
-            if (
-                !bitmap ||
-                x < 0 ||
-                y < 0 ||
-                x >= bitmap.length ||
-                (bitmap[x] && y >= bitmap[x].length)
-            ) {
+            if (!bitmap || x < 0 || y < 0 || x >= bitmap.length) {
                 endGame("lost");
                 return "out-of-bounds";
             }
 
-            // Récupérer la valeur à cette position dans le bitmap
-            const cellValue = bitmap[x][y];
-
-            // Vérifier le type de case
-            switch (cellValue) {
-                case 0: // Hors circuit (blanc)
-                    endGame("lost");
-                    return "collision";
-
-                case 3: // Arrivée (rouge)
-                    endGame("win");
-                    return "finish";
-
-                case 1: // Départ (vert)
-                case 2: // Circuit normal (bleu)
-                    return null; // Continuer le jeu
-
-                default:
-                    return null;
+            // Vérifier si on est sur un point d'arrivée (rouge)
+            // Utiliser la fonction utilitaire avec tolérance
+            if (imageUtils.isOnPath(bitmap, x, y, pathTolerance, 3)) {
+                endGame("win");
+                return "finish";
             }
+
+            // Vérifier si on est sur le chemin (bleu) ou sur un point de départ (vert)
+            const onPath =
+                imageUtils.isOnPath(bitmap, x, y, pathTolerance, 2) ||
+                imageUtils.isOnPath(bitmap, x, y, pathTolerance, 1);
+
+            if (!onPath) {
+                endGame("lost");
+                return "collision";
+            }
+
+            return null; // Continuer le jeu
         },
-        [gameState, bitmap, endGame]
+        [bitmap, gameState, endGame, pathTolerance]
     );
 
     // Retourner les états et fonctions
