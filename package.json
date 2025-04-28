@@ -7,7 +7,10 @@
         "dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
-        "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+        "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "start": "npm run docker:up && npm run dev"
     },
     "dependencies": {
         "@micetf/ui": "workspace:*",

@@ -1,13 +1,10 @@
 <?php
 
 /**
- * API de gestion des records
+ * API de gestion des records pour l'application "Les rois de la souris"
  *
- * Cette version simplifiée ne gère que les records, le traitement d'image
- * étant déplacé côté client.
- *
- * GET: Récupère les records pour un circuit
- * POST: Enregistre un nouveau record
+ * - GET: Récupère les records pour un circuit
+ * - POST: Enregistre un nouveau record
  */
 
 // Autoriser les requêtes CORS pour le développement
@@ -55,10 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $parcours = $_GET['parcours'];
     $fichier = '../records/'.$parcours.'.txt';
 
-    // Vérification de l'existence du fichier
+    // Vérification de l'existence du fichier et création si nécessaire
     if (!file_exists($fichier)) {
-        echo json_encode(['records' => []]);
-        exit;
+        // Créer le dossier si nécessaire
+        $dir = dirname($fichier);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Créer un fichier avec une entrée par défaut
+        file_put_contents($fichier, 'RAZ,3600'.PHP_EOL);
     }
 
     // Lecture du fichier de records
@@ -131,7 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Création du fichier s'il n'existe pas
     if (!file_exists($fichier)) {
-        file_put_contents($fichier, '');
+        // Créer le dossier si nécessaire
+        $dir = dirname($fichier);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Créer un fichier avec une entrée par défaut
+        file_put_contents($fichier, 'RAZ,3600'.PHP_EOL);
     }
 
     // Vérification de la clé de sécurité

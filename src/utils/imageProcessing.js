@@ -1,7 +1,7 @@
 /**
  * Utilitaires pour le traitement d'images
  */
-
+import { getAssetPath } from "../utils/assetPath";
 /**
  * Génère la bitmap d'un circuit à partir de son image
  *
@@ -12,7 +12,7 @@ export const generateBitmapFromImage = (circuitNumber) => {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "Anonymous"; // Important pour éviter les erreurs CORS
-        img.src = `/images/parcours${circuitNumber}.png`;
+        img.src = getAssetPath(`images/parcours${circuitNumber}.png`);
 
         img.onload = () => {
             // Créer un canvas pour analyser l'image
@@ -128,7 +128,7 @@ export const generateBitmapFromImageAsync = (circuitNumber) => {
             // Charger l'image
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            img.src = `/images/parcours${circuitNumber}.png`;
+            img.src = getAssetPath(`images/parcours${circuitNumber}.png`);
 
             img.onload = () => {
                 // Préparer les données de l'image à envoyer au worker

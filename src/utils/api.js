@@ -1,8 +1,8 @@
-import security from "./security";
-
 /**
  * Module pour les appels à l'API
  */
+
+import security from "./security";
 
 /**
  * URL de base de l'API (pour faciliter les changements d'environnement)
@@ -17,9 +17,14 @@ const API_BASE_URL = "/api";
  */
 export const getRecords = async (circuitNumber) => {
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/records.php?parcours=parcours${circuitNumber}`
+        // Construction de l'URL avec le format correct
+        const url = `${API_BASE_URL}/records.php?parcours=parcours${circuitNumber}`;
+
+        console.log(
+            `[API] Récupération des records pour le circuit ${circuitNumber} (${url})`
         );
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`Erreur HTTP: ${response.status}`);
@@ -27,10 +32,20 @@ export const getRecords = async (circuitNumber) => {
 
         const data = await response.json();
 
+        // Vérification et nettoyage des données reçues
+        if (!data.records || !Array.isArray(data.records)) {
+            console.warn(
+                "Format de réponse inattendu de l'API, initialisation d'un tableau vide"
+            );
+            return { records: [] };
+        }
+
         return data;
     } catch (error) {
         console.error("Erreur lors de la récupération des records:", error);
-        return { records: [] }; // Retourner un tableau vide en cas d'erreur
+
+        // Retourner un tableau vide en cas d'erreur pour éviter les problèmes
+        return { records: [] };
     }
 };
 
@@ -59,6 +74,10 @@ export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
         formData.append("token", token);
         formData.append("key", key);
 
+        console.log(
+            `[API] Sauvegarde d'un record pour le circuit ${parcours} (${chrono}s, ${pseudo})`
+        );
+
         const response = await fetch(`${API_BASE_URL}/records.php`, {
             method: "POST",
             body: formData,
@@ -70,10 +89,25 @@ export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
 
         const data = await response.json();
 
+        // Vérification des données reçues
+        if (!data.records || !Array.isArray(data.records)) {
+            console.warn(
+                "Format de réponse inattendu de l'API lors de la sauvegarde"
+            );
+            // Ajouter les records vides pour éviter les erreurs
+            data.records = [];
+        }
+
         return data;
     } catch (error) {
         console.error("Erreur lors de la sauvegarde du record:", error);
-        throw error;
+
+        // Retourner une structure d'erreur cohérente
+        return {
+            success: false,
+            error: error.message,
+            records: [],
+        };
     }
 };
 

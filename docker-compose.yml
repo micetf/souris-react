@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  php-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.php5
+    ports:
+      - "8080:80"
+    volumes:
+      # Montez les dossiers en développement pour faciliter les modifications
+      - ./api:/var/www/html/api
+      - ./records:/var/www/html/records

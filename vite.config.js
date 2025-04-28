@@ -5,6 +5,7 @@ import { resolve } from "path";
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
+    base: "/souris/", // Chemin de base pour les assets en production
     resolve: {
         alias: {
             "@": resolve(__dirname, "src"),
@@ -12,35 +13,32 @@ export default defineConfig({
     },
     // Configuration du serveur de développement
     server: {
-        port: 3000,
+        port: 3001,
         open: true,
-        // Proxy pour les API PHP
+        // Proxy pour les API PHP via Docker
         proxy: {
             "/api": {
-                target: "http://localhost/souris/api",
+                target: "http://localhost:8080", // Pointez vers votre conteneur Docker
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api/, ""),
-            },
-            // Proxy pour les images des circuits
-            "/images": {
-                target: "http://localhost/souris/public/images",
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/images/, ""),
+                secure: false,
+                rewrite: (path) => path,
             },
         },
     },
-    // Configuration de production
+    // Configuration de production (reste inchangée)
     build: {
         outDir: "dist",
-        // Génération de sourcemaps pour le débogage en production
-        sourcemap: true,
-        // Optimisation des bundles
+        sourcemap: process.env.NODE_ENV !== "production",
+        minify: "terser",
+        terserOptions: {
+            compress: {
+                drop_console: process.env.NODE_ENV === "production",
+            },
+        },
         rollupOptions: {
             output: {
                 manualChunks: {
-                    // Séparer les dépendances React en un chunk distinct
                     "vendor-react": ["react", "react-dom"],
-                    // Séparer les composants MiCetF en un chunk distinct
                     "vendor-micetf": ["@micetf/ui"],
                 },
             },
