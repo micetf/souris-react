@@ -295,6 +295,13 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
 
     return (
         <div className="relative" ref={circuitRef}>
+            {/* Chronomètre déplacé au-dessus du circuit */}
+            <div className="mb-4 flex justify-center">
+                <div className="bg-white text-primary-600 text-2xl font-bold py-2 px-6 rounded-full shadow-md">
+                    {elapsedTime.toFixed(2)}
+                </div>
+            </div>
+
             {/* Container pour maintenir le ratio */}
             <div className="relative w-full aspect-[4/3] bg-gray-100 rounded-lg shadow-md overflow-hidden">
                 {/* Image du circuit */}
@@ -311,15 +318,12 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                 />
             </div>
 
-            {/* Chronomètre */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white text-primary-600 text-2xl font-bold py-2 px-6 rounded-full shadow-md">
-                {elapsedTime.toFixed(2)}
-            </div>
-
             {/* Indication pour démarrer (si le jeu n'est pas en cours) */}
             {gameState === "idle" && startPositions.length > 0 && (
-                <div className="absolute top-14 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-800 text-sm py-1 px-4 rounded-full shadow">
-                    Commence en plaçant ton curseur sur un point vert
+                <div className="mt-4 text-center">
+                    <div className="inline-block bg-green-100 text-green-800 text-sm py-1 px-4 rounded-full shadow">
+                        Commence en plaçant ton curseur sur un point vert
+                    </div>
                 </div>
             )}
 
