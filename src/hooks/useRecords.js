@@ -46,6 +46,26 @@ const useRecords = (circuitNumber) => {
     }, [circuitNumber]);
 
     /**
+     * Vérifie si un temps mérite d'être dans le top 10 global
+     *
+     * @param {number} time - Temps à vérifier
+     * @param {Array} records - Liste des records actuels
+     * @returns {boolean} - true si le temps mérite d'être dans le top 10
+     */
+    const isInTop10 = useCallback((time, records) => {
+        // Si moins de 10 records, alors oui
+        if (!records || records.length < 10) {
+            return true;
+        }
+
+        // Vérifier si le temps est meilleur que le dernier du top 10
+        const worstTimeInTop10 = Math.max(
+            ...records.map((r) => parseFloat(r.chrono))
+        );
+        return time < worstTimeInTop10;
+    }, []);
+
+    /**
      * Sauvegarde un nouveau record
      *
      * @param {Object} recordData - Données du record
@@ -71,7 +91,7 @@ const useRecords = (circuitNumber) => {
                     `Is new personal record: ${isNewPersonalRecord}, current: ${personalRecord}s, new: ${time}s`
                 );
 
-                // Sauvegarder localement d'abord si c'est un nouveau record
+                // Sauvegarder localement si c'est un nouveau record personnel
                 if (isNewPersonalRecord) {
                     const saved = localStorage.localRecords.saveRecord(
                         circuitNumber,
@@ -83,53 +103,85 @@ const useRecords = (circuitNumber) => {
                     setPersonalRecord(time);
                 }
 
-                // Puis envoyer au serveur
+                // Vérifier si le temps mérite d'être dans le top 10 global
+                const shouldSendToServer = isInTop10(time, globalRecords);
                 console.log(
-                    `Sending record to server for circuit ${circuitNumber}`
+                    `Should send to server (top 10 candidate): ${shouldSendToServer}`
                 );
-                const result = await api.saveRecord({
-                    parcours: circuitNumber,
-                    pseudo,
-                    chrono: time,
-                    token,
-                });
 
-                console.log("Server response:", result);
+                // Envoyer au serveur même si ce n'est pas un record personnel,
+                // tant que c'est potentiellement dans le top 10
+                if (shouldSendToServer) {
+                    console.log(
+                        `Sending record to server for circuit ${circuitNumber}`
+                    );
+                    const result = await api.saveRecord({
+                        parcours: circuitNumber,
+                        pseudo,
+                        chrono: time,
+                        token,
+                    });
 
-                // Gérer les erreurs de l'API
-                if (!result.success && result.error) {
-                    setError(`Erreur serveur: ${result.error}`);
-                    return {
-                        success: false,
-                        error: result.error,
+                    console.log("Server response:", result);
+
+                    // Gérer les erreurs de l'API
+                    if (!result.success && result.error) {
+                        setError(`Erreur serveur: ${result.error}`);
+                        return {
+                            success: false,
+                            error: result.error,
+                            isNewPersonalRecord,
+                        };
+                    }
+
+                    // Mettre à jour immédiatement les records globaux avec la réponse du serveur
+                    if (result.records && Array.isArray(result.records)) {
+                        console.log(
+                            "Updating global records from server response:",
+                            result.records
+                        );
+                        setGlobalRecords(result.records);
+                    }
+
+                    // Enregistrer ce record comme le dernier sauvegardé
+                    const savedRecord = {
+                        time,
                         isNewPersonalRecord,
+                        rank: result.newRank || null,
+                        success: result.success,
+                    };
+                    setLastSavedRecord(savedRecord);
+                    console.log("Last saved record updated:", savedRecord);
+
+                    return {
+                        success: true,
+                        isNewPersonalRecord,
+                        newRank: result.newRank,
+                        records: result.records, // Retourner les records mis à jour
+                    };
+                } else {
+                    // Pas besoin d'envoyer au serveur car ce n'est ni un record personnel
+                    // ni un potentiel top 10
+                    console.log(
+                        "Not sending to server - not a top 10 candidate"
+                    );
+
+                    // Mettre quand même à jour lastSavedRecord pour l'UI
+                    const savedRecord = {
+                        time,
+                        isNewPersonalRecord,
+                        rank: null,
+                        success: true, // Succès local uniquement
+                    };
+                    setLastSavedRecord(savedRecord);
+
+                    return {
+                        success: true,
+                        isNewPersonalRecord,
+                        newRank: null,
+                        records: globalRecords, // Retourner les records actuels
                     };
                 }
-
-                // Mettre à jour les records globaux
-                if (result.records && Array.isArray(result.records)) {
-                    setGlobalRecords(result.records);
-                } else {
-                    // Si le serveur ne renvoie pas la liste mise à jour, rafraîchir manuellement
-                    await fetchGlobalRecords();
-                }
-
-                // Enregistrer ce record comme le dernier sauvegardé
-                const savedRecord = {
-                    time,
-                    isNewPersonalRecord,
-                    rank: result.newRank || null,
-                    success: result.success,
-                };
-                setLastSavedRecord(savedRecord);
-                console.log("Last saved record updated:", savedRecord);
-
-                return {
-                    success: true,
-                    isNewPersonalRecord,
-                    newRank: result.newRank,
-                    ...result,
-                };
             } catch (err) {
                 console.error("Erreur lors de la sauvegarde du record:", err);
                 setError(
@@ -144,14 +196,20 @@ const useRecords = (circuitNumber) => {
                 setLoading(false);
             }
         },
-        [circuitNumber, fetchGlobalRecords, personalRecord]
+        [
+            circuitNumber,
+            fetchGlobalRecords,
+            personalRecord,
+            globalRecords,
+            isInTop10,
+        ]
     );
 
     /**
-     * Vérifie si le temps donné est un nouveau record
+     * Vérifie si le temps donné est un nouveau record personnel
      *
      * @param {number} time - Temps à vérifier
-     * @returns {boolean} - true si c'est un meilleur temps que le record actuel
+     * @returns {boolean} - true si c'est un meilleur temps que le record personnel actuel
      */
     const isNewRecord = useCallback(
         (time) => {

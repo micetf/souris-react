@@ -8,13 +8,22 @@ import Button from "../common/Button";
  *
  * @param {Object} props - Propriétés du composant
  * @param {number} props.circuitNumber - Numéro du circuit
+ * @param {Array} [props.initialRecords] - Records initiaux (optionnel)
  * @returns {JSX.Element} Le composant d'affichage des records
  */
-const Records = ({ circuitNumber }) => {
-    const [records, setRecords] = useState([]);
-    const [loading, setLoading] = useState(true);
+const Records = ({ circuitNumber, initialRecords = null }) => {
+    const [records, setRecords] = useState(initialRecords || []);
+    const [loading, setLoading] = useState(!initialRecords);
     const [error, setError] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0); // Utilisé pour forcer le rechargement
+
+    // Si des records sont fournis de l'extérieur (ex: après sauvegarde), les utiliser
+    useEffect(() => {
+        if (initialRecords && Array.isArray(initialRecords)) {
+            console.log("Records updated from props:", initialRecords);
+            setRecords(initialRecords);
+        }
+    }, [initialRecords]);
 
     // Charger les records au chargement et quand le circuit change
     useEffect(() => {
@@ -67,7 +76,7 @@ const Records = ({ circuitNumber }) => {
                 <Button
                     onClick={handleRefresh}
                     variant="secondary"
-                    icon="fa-sync-alt"
+                    icon="sync-alt"
                     size="small"
                     disabled={loading}
                     title="Rafraîchir les records"
@@ -121,6 +130,7 @@ const Records = ({ circuitNumber }) => {
 
 Records.propTypes = {
     circuitNumber: PropTypes.number.isRequired,
+    initialRecords: PropTypes.array,
 };
 
 export default Records;

@@ -6,8 +6,8 @@ import Loading from "./components/common/Loading";
 import Help from "./components/Popup/Help";
 import GetPseudo from "./components/Popup/GetPseudo";
 import useCircuit from "./hooks/useCircuit";
-import useRecords from "./hooks/useRecords"; // Importation du hook useRecords
-import localStorage from "./utils/localStorage"; // Import direct pour clarté
+import useRecords from "./hooks/useRecords";
+import localStorage from "./utils/localStorage";
 
 /**
  * Composant principal de l'application
@@ -29,14 +29,27 @@ const App = () => {
     );
     const [showHelp, setShowHelp] = useState(false);
     const [showGetPseudo, setShowGetPseudo] = useState(false);
+    const [currentRecords, setCurrentRecords] = useState(null);
 
     // Utiliser le hook useCircuit pour charger et gérer le circuit
     const { circuitData, loading, error, changeCircuit, circuitNumber } =
         useCircuit(getInitialCircuitNumber());
 
     // Utiliser le hook useRecords pour gérer les records
-    const { personalRecord, saveRecord, isNewRecord, lastSavedRecord } =
-        useRecords(circuitNumber);
+    const {
+        globalRecords,
+        personalRecord,
+        saveRecord,
+        isNewRecord,
+        lastSavedRecord,
+    } = useRecords(circuitNumber);
+
+    // Mettre à jour les records actuels à partir du hook useRecords
+    useEffect(() => {
+        if (globalRecords && globalRecords.length > 0) {
+            setCurrentRecords(globalRecords);
+        }
+    }, [globalRecords]);
 
     // Vérifier si un pseudo existe déjà
     useEffect(() => {
@@ -62,6 +75,9 @@ const App = () => {
             `?c=${circuitNumber}`
         );
 
+        // Réinitialiser les records pour éviter d'afficher ceux du circuit précédent
+        setCurrentRecords(null);
+
         // Changer le circuit
         await changeCircuit(circuitNumber);
     };
@@ -75,35 +91,39 @@ const App = () => {
         console.log(`Game ended with result: ${result}, time: ${time}s`);
 
         if (result === "win" && time && circuitData) {
-            // Vérifier si c'est un nouveau record
-            const newRecord = isNewRecord(time);
-            console.log(`Is new record: ${newRecord}`);
+            // Vérifier si c'est un nouveau record personnel
+            const newPersonalRecord = isNewRecord(time);
+            console.log(`Is new personal record: ${newPersonalRecord}`);
 
-            if (newRecord) {
-                console.log(
-                    `Saving new record: ${time}s for circuit ${circuitData.circuitNumber}`
-                );
+            console.log(
+                `Saving performance time: ${time}s for circuit ${circuitData.circuitNumber}`
+            );
 
-                // Sauvegarder le record via le hook
-                try {
-                    const saveResult = await saveRecord({
-                        pseudo: pseudo,
-                        time: time,
-                        token: circuitData.sessionToken,
-                    });
+            // Toujours tenter de sauvegarder le temps, même si ce n'est pas un record personnel
+            try {
+                const saveResult = await saveRecord({
+                    pseudo: pseudo,
+                    time: time,
+                    token: circuitData.sessionToken,
+                });
 
-                    console.log("Record save result:", saveResult);
+                console.log("Record save result:", saveResult);
 
-                    // Gérer le retour (succès ou échec)
-                    if (!saveResult.success) {
-                        console.error("Error saving record:", saveResult.error);
-                    }
-                } catch (error) {
-                    console.error(
-                        "Erreur lors de la sauvegarde du record:",
-                        error
+                // Mettre à jour la liste des records avec la réponse du serveur
+                if (saveResult.success && saveResult.records) {
+                    console.log(
+                        "Updating records from server response:",
+                        saveResult.records
                     );
+                    setCurrentRecords(saveResult.records);
                 }
+
+                // Gérer le retour (succès ou échec)
+                if (!saveResult.success) {
+                    console.error("Error saving record:", saveResult.error);
+                }
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde du record:", error);
             }
         }
     };
@@ -244,9 +264,12 @@ const App = () => {
                         </button>
                     </div>
 
-                    {/* Records */}
+                    {/* Records - Passer les records actuels pour une mise à jour instantanée */}
                     {circuitData && (
-                        <Records circuitNumber={circuitData.circuitNumber} />
+                        <Records
+                            circuitNumber={circuitData.circuitNumber}
+                            initialRecords={currentRecords}
+                        />
                     )}
                 </div>
             </main>

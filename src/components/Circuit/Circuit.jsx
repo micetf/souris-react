@@ -192,6 +192,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                             setShowPopup(true);
 
                             // Notifier le composant parent avec le temps exact
+                            // On envoie toujours le temps, même si ce n'est pas un record personnel
                             if (onGameEnd) {
                                 onGameEnd("win", elapsedTime);
                             }
