@@ -5,35 +5,77 @@ import Records from "./components/Records";
 import Loading from "./components/common/Loading";
 import Help from "./components/Popup/Help";
 import GetPseudo from "./components/Popup/GetPseudo";
+import ShareDialog from "./components/Popup/ShareDialog";
+import PseudoNotification from "./components/Notifications/PseudoNotification";
 import useCircuit from "./hooks/useCircuit";
 import useRecords from "./hooks/useRecords";
 import localStorage from "./utils/localStorage";
+import { validatePseudo } from "./utils/security";
 
 /**
  * Composant principal de l'application
  */
 const App = () => {
-    // Récupérer le numéro de circuit depuis l'URL
-    const getInitialCircuitNumber = () => {
+    // Récupérer le numéro de circuit et le pseudo depuis l'URL
+    const getInitialParameters = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const circuitFromUrl = parseInt(urlParams.get("c")) || 1;
 
-        // Utiliser le circuit sauvegardé si disponible, sinon celui de l'URL
+        // Récupérer le circuit depuis l'URL ou utiliser le dernier visité
+        let circuitFromUrl = parseInt(urlParams.get("c"));
+        // S'assurer que le circuit est un nombre positif
+        circuitFromUrl =
+            !isNaN(circuitFromUrl) && circuitFromUrl > 0 ? circuitFromUrl : 0;
+
         const lastCircuit = localStorage.userPreferences.getLastCircuit();
-        return circuitFromUrl || lastCircuit || 1;
+        // S'assurer que le circuit du localStorage est valide
+        const validLastCircuit = lastCircuit > 0 ? lastCircuit : 0;
+
+        // Utiliser le circuit de l'URL, puis celui du localStorage, sinon 1 par défaut
+        const initialCircuit = circuitFromUrl || validLastCircuit || 1;
+
+        // Récupérer le pseudo depuis l'URL ou utiliser celui stocké
+        const pseudoFromUrl = urlParams.get("p");
+        const storedPseudo = localStorage.userPreferences.getPseudo();
+
+        // Valider le pseudo de l'URL si présent
+        let validatedPseudo = storedPseudo;
+        let isPseudoFromURL = false;
+
+        if (pseudoFromUrl) {
+            const validation = validatePseudo(pseudoFromUrl);
+            if (validation.valid) {
+                validatedPseudo = pseudoFromUrl;
+                isPseudoFromURL = true;
+                // Ne pas sauvegarder automatiquement le pseudo de l'URL
+                // L'utilisateur devra confirmer s'il souhaite l'utiliser
+            }
+        }
+
+        return {
+            circuitNumber: initialCircuit,
+            pseudo: validatedPseudo || "Anonyme",
+            isPseudoFromURL: isPseudoFromURL,
+        };
     };
 
+    const initialParams = getInitialParameters();
+
     // États
-    const [pseudo, setPseudo] = useState(
-        localStorage.userPreferences.getPseudo() || "Anonyme"
+    const [pseudo, setPseudo] = useState(initialParams.pseudo);
+    const [isPseudoFromURL, setIsPseudoFromURL] = useState(
+        initialParams.isPseudoFromURL
     );
+    const [hasAcknowledgedSharedPseudo, setHasAcknowledgedSharedPseudo] =
+        useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [showGetPseudo, setShowGetPseudo] = useState(false);
+    const [showShareDialog, setShowShareDialog] = useState(false);
+    const [shareNotification, setShareNotification] = useState(false);
     const [currentRecords, setCurrentRecords] = useState(null);
 
     // Utiliser le hook useCircuit pour charger et gérer le circuit
     const { circuitData, loading, error, changeCircuit, circuitNumber } =
-        useCircuit(getInitialCircuitNumber());
+        useCircuit(initialParams.circuitNumber);
 
     // Utiliser le hook useRecords pour gérer les records
     const {
@@ -51,28 +93,41 @@ const App = () => {
         }
     }, [globalRecords]);
 
-    // Vérifier si un pseudo existe déjà
+    // Vérifier si un pseudo existe déjà, mais seulement si ce n'est pas défini via l'URL
     useEffect(() => {
-        const savedPseudo = localStorage.userPreferences.getPseudo();
-        if (
-            !savedPseudo ||
-            savedPseudo.length < 4 ||
-            savedPseudo === "Anonyme"
-        ) {
-            setShowGetPseudo(true);
+        if (!isPseudoFromURL) {
+            const savedPseudo = localStorage.userPreferences.getPseudo();
+            if (
+                !savedPseudo ||
+                savedPseudo.length < 4 ||
+                savedPseudo === "Anonyme"
+            ) {
+                setShowGetPseudo(true);
+            }
         }
-    }, []);
+    }, [isPseudoFromURL]);
 
     /**
      * Gère le changement de circuit
      * @param {number} circuitNumber - Numéro du circuit à charger
      */
     const handleCircuitChange = async (circuitNumber) => {
-        // Mettre à jour l'URL sans recharger la page
+        // Vérification supplémentaire que le circuit est un nombre positif
+        if (isNaN(circuitNumber) || circuitNumber <= 0) {
+            console.error("Numéro de circuit invalide:", circuitNumber);
+            return;
+        }
+
+        // Mettre à jour l'URL sans recharger la page, en préservant le paramètre pseudo s'il existe
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set("c", circuitNumber);
+
+        // Construire la nouvelle URL avec les paramètres mis à jour
+        const newUrl = `?${urlParams.toString()}`;
         window.history.pushState(
             {},
             `Les rois de la souris (Parcours n°${circuitNumber})`,
-            `?c=${circuitNumber}`
+            newUrl
         );
 
         // Réinitialiser les records pour éviter d'afficher ceux du circuit précédent
@@ -80,6 +135,35 @@ const App = () => {
 
         // Changer le circuit
         await changeCircuit(circuitNumber);
+    };
+
+    /**
+     * Génère une URL pour le partage
+     * @param {boolean} includePseudo - Inclure le pseudo dans l'URL de partage
+     * @returns {string} L'URL de partage
+     */
+    const generateShareURL = (includePseudo = false) => {
+        const urlParams = new URLSearchParams();
+        urlParams.set("c", circuitNumber);
+
+        // Inclure le pseudo uniquement si demandé
+        if (includePseudo && pseudo && pseudo !== "Anonyme") {
+            urlParams.set("p", pseudo);
+        }
+
+        return `${window.location.origin}${window.location.pathname}?${urlParams.toString()}`;
+    };
+
+    /**
+     * Gère le partage de l'URL
+     * @param {boolean} includePseudo - Inclure le pseudo dans l'URL de partage
+     */
+    const handleShare = (includePseudo = false) => {
+        const shareURL = generateShareURL(includePseudo);
+        navigator.clipboard.writeText(shareURL);
+        setShareNotification(true);
+        setTimeout(() => setShareNotification(false), 3000);
+        setShowShareDialog(false);
     };
 
     /**
@@ -129,15 +213,51 @@ const App = () => {
     };
 
     /**
+     * Adopte le pseudo partagé via l'URL
+     */
+    const adoptSharedPseudo = () => {
+        if (isPseudoFromURL && pseudo) {
+            localStorage.userPreferences.savePseudo(pseudo);
+            setIsPseudoFromURL(false);
+            setHasAcknowledgedSharedPseudo(true);
+        }
+    };
+
+    /**
      * Gère le changement de pseudo
      * @param {string} newPseudo - Nouveau pseudo
+     * @param {boolean} saveToLocalStorage - Indique si le pseudo doit être sauvegardé dans le localStorage
      */
-    const handlePseudoChange = (newPseudo) => {
+    const handlePseudoChange = (newPseudo, saveToLocalStorage = true) => {
         if (newPseudo && newPseudo.length >= 4) {
             console.log(`Changing pseudo to: ${newPseudo}`);
             setPseudo(newPseudo);
-            localStorage.userPreferences.savePseudo(newPseudo);
+            setIsPseudoFromURL(false);
+
+            // Sauvegarder dans le localStorage uniquement si demandé
+            if (saveToLocalStorage) {
+                localStorage.userPreferences.savePseudo(newPseudo);
+            }
+
             setShowGetPseudo(false);
+
+            // Mettre à jour l'URL avec le nouveau pseudo uniquement s'il est sauvegardé
+            if (saveToLocalStorage) {
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set("p", newPseudo);
+
+                // Construire la nouvelle URL avec les paramètres mis à jour
+                const newUrl = `?${urlParams.toString()}`;
+                window.history.pushState({}, document.title, newUrl);
+            } else {
+                // Si on ne sauvegarde pas le pseudo, le retirer de l'URL
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.delete("p");
+
+                // Construire la nouvelle URL sans le pseudo
+                const newUrl = `?${urlParams.toString()}`;
+                window.history.pushState({}, document.title, newUrl);
+            }
         }
     };
 
@@ -216,7 +336,22 @@ const App = () => {
                         </div>
                     )}
 
-                    {/* Menu de sélection des circuits */}
+                    {/* Notification de pseudo partagé */}
+                    {isPseudoFromURL && !hasAcknowledgedSharedPseudo && (
+                        <PseudoNotification
+                            pseudo={pseudo}
+                            onAdopt={adoptSharedPseudo}
+                            onCustomize={() => {
+                                setHasAcknowledgedSharedPseudo(true);
+                                setShowGetPseudo(true);
+                            }}
+                            onDismiss={() =>
+                                setHasAcknowledgedSharedPseudo(true)
+                            }
+                        />
+                    )}
+
+                    {/* Menu de sélection des circuits et bouton de partage */}
                     {circuitData && (
                         <div className="mt-6 flex flex-wrap justify-center items-center gap-2 p-4 bg-white rounded-lg shadow-md">
                             <span className="mr-2">|</span>
@@ -250,18 +385,46 @@ const App = () => {
                                     )}
                                 </React.Fragment>
                             ))}
+
+                            {/* Bouton de partage */}
+                            <button
+                                onClick={() => setShowShareDialog(true)}
+                                className="text-primary-600 hover:underline font-medium flex items-center ml-2"
+                                title="Partager ce circuit"
+                            >
+                                <i className="fas fa-share-alt mr-1"></i>{" "}
+                                Partager
+                            </button>
                         </div>
                     )}
 
-                    {/* Pseudo */}
-                    <div className="mt-4 flex justify-center">
+                    {/* Pseudo avec indication visuelle de la source */}
+                    <div className="mt-4 flex justify-center relative">
                         <button
                             onClick={() => setShowGetPseudo(true)}
-                            className="bg-primary-600 text-white px-4 py-2 rounded-full hover:bg-primary-700 transition"
+                            className="bg-primary-600 text-white px-4 py-2 rounded-full hover:bg-primary-700 transition flex items-center"
                             title="Changer de pseudo"
                         >
-                            [{pseudo}]
+                            {isPseudoFromURL ? (
+                                <>
+                                    <i className="fas fa-link mr-2"></i>[
+                                    {pseudo}]
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-user mr-2"></i>[
+                                    {pseudo}]
+                                </>
+                            )}
+                            <i className="fas fa-pencil-alt ml-2 text-xs"></i>
                         </button>
+
+                        {/* Notification de partage réussi */}
+                        {shareNotification && (
+                            <div className="absolute -top-10 bg-green-100 text-green-800 px-4 py-2 rounded shadow-md animate-fade-in-out">
+                                URL copiée !
+                            </div>
+                        )}
                     </div>
 
                     {/* Records - Passer les records actuels pour une mise à jour instantanée */}
@@ -296,11 +459,21 @@ const App = () => {
 
             {/* Popups */}
             {showHelp && <Help onClose={() => setShowHelp(false)} />}
+
             {showGetPseudo && (
                 <GetPseudo
                     initialPseudo={pseudo}
                     onSubmit={handlePseudoChange}
                     onClose={() => setShowGetPseudo(false)}
+                    isFromURL={isPseudoFromURL}
+                />
+            )}
+
+            {showShareDialog && (
+                <ShareDialog
+                    onClose={() => setShowShareDialog(false)}
+                    onShare={handleShare}
+                    currentPseudo={pseudo}
                 />
             )}
         </div>

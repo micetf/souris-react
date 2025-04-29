@@ -3,17 +3,24 @@ import PropTypes from "prop-types";
 import { validatePseudo } from "../../utils/security";
 
 /**
- * Composant pour saisir ou modifier le pseudo du joueur
+ * Composant pour saisir ou modifier le pseudo du joueur avec options améliorées
  *
  * @param {Object} props - Propriétés du composant
  * @param {string} props.initialPseudo - Pseudo initial (si déjà défini)
- * @param {function} props.onSubmit - Fonction appelée à la soumission du formulaire
+ * @param {function} props.onSubmit - Fonction appelée à la soumission du formulaire (reçoit le pseudo et l'option de sauvegarde)
  * @param {function} props.onClose - Fonction appelée à la fermeture du popup
+ * @param {boolean} props.isFromURL - Indique si le pseudo initial provient d'une URL partagée
  * @returns {JSX.Element} Le composant popup de saisie du pseudo
  */
-const GetPseudo = ({ initialPseudo = "Anonyme", onSubmit, onClose }) => {
+const GetPseudo = ({
+    initialPseudo = "Anonyme",
+    onSubmit,
+    onClose,
+    isFromURL = false,
+}) => {
     const [pseudo, setPseudo] = useState(initialPseudo);
     const [error, setError] = useState("");
+    const [saveLocally, setSaveLocally] = useState(!isFromURL);
     const inputRef = useRef(null);
 
     // Focus sur l'input au chargement
@@ -39,8 +46,8 @@ const GetPseudo = ({ initialPseudo = "Anonyme", onSubmit, onClose }) => {
             return;
         }
 
-        // Soumettre le pseudo
-        onSubmit(pseudo.trim());
+        // Soumettre le pseudo avec l'option de sauvegarde
+        onSubmit(pseudo.trim(), saveLocally);
     };
 
     const handleChange = (e) => {
@@ -73,8 +80,18 @@ const GetPseudo = ({ initialPseudo = "Anonyme", onSubmit, onClose }) => {
 
                 <div className="p-6">
                     <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
-                        Saisis ton pseudo !
+                        {isFromURL
+                            ? "Personnaliser ton pseudo"
+                            : "Saisis ton pseudo !"}
                     </h3>
+
+                    {isFromURL && (
+                        <p className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                            Tu utilisais un pseudo partagé par URL. Tu peux
+                            maintenant le personnaliser ou utiliser ton propre
+                            pseudo.
+                        </p>
+                    )}
 
                     <form onSubmit={handleSubmit}>
                         <div className="mb-4">
@@ -101,6 +118,29 @@ const GetPseudo = ({ initialPseudo = "Anonyme", onSubmit, onClose }) => {
                                     {error}
                                 </p>
                             )}
+
+                            <div className="mt-3">
+                                <label className="flex items-center text-sm text-gray-600">
+                                    <input
+                                        type="checkbox"
+                                        checked={saveLocally}
+                                        onChange={(e) =>
+                                            setSaveLocally(e.target.checked)
+                                        }
+                                        className="form-checkbox h-4 w-4 text-primary-600 rounded"
+                                    />
+                                    <span className="ml-2">
+                                        Mémoriser ce pseudo sur cet appareil
+                                    </span>
+                                </label>
+                                <p className="text-xs text-gray-500 mt-1 ml-6">
+                                    Ce pseudo sera utilisé pour enregistrer tes
+                                    records et sera conservé pour tes prochaines
+                                    visites sur cet appareil.
+                                    {!saveLocally &&
+                                        " Si tu ne coches pas cette option, ton pseudo sera utilisé uniquement pour cette session."}
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex justify-center space-x-4">
@@ -114,9 +154,10 @@ const GetPseudo = ({ initialPseudo = "Anonyme", onSubmit, onClose }) => {
 
                             <button
                                 type="submit"
-                                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-full font-medium transition-colors"
+                                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-full font-medium transition-colors flex items-center"
                             >
-                                OK
+                                <i className="fas fa-check mr-2"></i>
+                                Valider
                             </button>
                         </div>
                     </form>
@@ -130,6 +171,7 @@ GetPseudo.propTypes = {
     initialPseudo: PropTypes.string,
     onSubmit: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired,
+    isFromURL: PropTypes.bool,
 };
 
 export default GetPseudo;
