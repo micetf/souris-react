@@ -4,9 +4,8 @@ import Circuit from "./components/Circuit";
 import Records from "./components/Records";
 import Loading from "./components/common/Loading";
 import Help from "./components/Popup/Help";
-import GetPseudo from "./components/Popup/GetPseudo";
 import ShareDialog from "./components/Popup/ShareDialog";
-import PseudoNotification from "./components/Notifications/PseudoNotification";
+import { PseudoSelector } from "./components/Popup";
 import useCircuit from "./hooks/useCircuit";
 import useRecords from "./hooks/useRecords";
 import localStorage from "./utils/localStorage";
@@ -16,7 +15,7 @@ import { validatePseudo } from "./utils/security";
  * Composant principal de l'application
  */
 const App = () => {
-    // Récupérer le numéro de circuit et le pseudo depuis l'URL
+    // Récupérer le numéro de circuit depuis l'URL
     const getInitialParameters = () => {
         const urlParams = new URLSearchParams(window.location.search);
 
@@ -33,42 +32,18 @@ const App = () => {
         // Utiliser le circuit de l'URL, puis celui du localStorage, sinon 1 par défaut
         const initialCircuit = circuitFromUrl || validLastCircuit || 1;
 
-        // Récupérer le pseudo depuis l'URL ou utiliser celui stocké
-        const pseudoFromUrl = urlParams.get("p");
-        const storedPseudo = localStorage.userPreferences.getPseudo();
-
-        // Valider le pseudo de l'URL si présent
-        let validatedPseudo = storedPseudo;
-        let isPseudoFromURL = false;
-
-        if (pseudoFromUrl) {
-            const validation = validatePseudo(pseudoFromUrl);
-            if (validation.valid) {
-                validatedPseudo = pseudoFromUrl;
-                isPseudoFromURL = true;
-                // Ne pas sauvegarder automatiquement le pseudo de l'URL
-                // L'utilisateur devra confirmer s'il souhaite l'utiliser
-            }
-        }
-
         return {
             circuitNumber: initialCircuit,
-            pseudo: validatedPseudo || "Anonyme",
-            isPseudoFromURL: isPseudoFromURL,
         };
     };
 
     const initialParams = getInitialParameters();
 
     // États
-    const [pseudo, setPseudo] = useState(initialParams.pseudo);
-    const [isPseudoFromURL, setIsPseudoFromURL] = useState(
-        initialParams.isPseudoFromURL
-    );
-    const [hasAcknowledgedSharedPseudo, setHasAcknowledgedSharedPseudo] =
-        useState(false);
+    const [pseudo, setPseudo] = useState("Anonyme");
+    const [showPseudoSelector, setShowPseudoSelector] = useState(true);
+    const [storedPseudos, setStoredPseudos] = useState([]);
     const [showHelp, setShowHelp] = useState(false);
-    const [showGetPseudo, setShowGetPseudo] = useState(false);
     const [showShareDialog, setShowShareDialog] = useState(false);
     const [shareNotification, setShareNotification] = useState(false);
     const [currentRecords, setCurrentRecords] = useState(null);
@@ -86,26 +61,18 @@ const App = () => {
         lastSavedRecord,
     } = useRecords(circuitNumber);
 
+    // Charger les pseudos stockés lors du chargement initial
+    useEffect(() => {
+        const savedPseudos = localStorage.pseudoManager.getAllPseudos();
+        setStoredPseudos(savedPseudos);
+    }, []);
+
     // Mettre à jour les records actuels à partir du hook useRecords
     useEffect(() => {
         if (globalRecords && globalRecords.length > 0) {
             setCurrentRecords(globalRecords);
         }
     }, [globalRecords]);
-
-    // Vérifier si un pseudo existe déjà, mais seulement si ce n'est pas défini via l'URL
-    useEffect(() => {
-        if (!isPseudoFromURL) {
-            const savedPseudo = localStorage.userPreferences.getPseudo();
-            if (
-                !savedPseudo ||
-                savedPseudo.length < 4 ||
-                savedPseudo === "Anonyme"
-            ) {
-                setShowGetPseudo(true);
-            }
-        }
-    }, [isPseudoFromURL]);
 
     /**
      * Gère le changement de circuit
@@ -118,8 +85,8 @@ const App = () => {
             return;
         }
 
-        // Mettre à jour l'URL sans recharger la page, en préservant le paramètre pseudo s'il existe
-        const urlParams = new URLSearchParams(window.location.search);
+        // Mettre à jour l'URL sans recharger la page
+        const urlParams = new URLSearchParams();
         urlParams.set("c", circuitNumber);
 
         // Construire la nouvelle URL avec les paramètres mis à jour
@@ -139,27 +106,21 @@ const App = () => {
 
     /**
      * Génère une URL pour le partage
-     * @param {boolean} includePseudo - Inclure le pseudo dans l'URL de partage
      * @returns {string} L'URL de partage
      */
-    const generateShareURL = (includePseudo = false) => {
+    const generateShareURL = () => {
         const urlParams = new URLSearchParams();
         urlParams.set("c", circuitNumber);
 
-        // Inclure le pseudo uniquement si demandé
-        if (includePseudo && pseudo && pseudo !== "Anonyme") {
-            urlParams.set("p", pseudo);
-        }
-
+        // Nous ne partageons plus le pseudo dans l'URL
         return `${window.location.origin}${window.location.pathname}?${urlParams.toString()}`;
     };
 
     /**
      * Gère le partage de l'URL
-     * @param {boolean} includePseudo - Inclure le pseudo dans l'URL de partage
      */
-    const handleShare = (includePseudo = false) => {
-        const shareURL = generateShareURL(includePseudo);
+    const handleShare = () => {
+        const shareURL = generateShareURL();
         navigator.clipboard.writeText(shareURL);
         setShareNotification(true);
         setTimeout(() => setShareNotification(false), 3000);
@@ -213,51 +174,79 @@ const App = () => {
     };
 
     /**
-     * Adopte le pseudo partagé via l'URL
+     * Gère la sélection du pseudo
+     * @param {string} selectedPseudo - Pseudo sélectionné
+     * @param {boolean} saveToLocalStorage - Indique si le pseudo doit être sauvegardé
      */
-    const adoptSharedPseudo = () => {
-        if (isPseudoFromURL && pseudo) {
-            localStorage.userPreferences.savePseudo(pseudo);
-            setIsPseudoFromURL(false);
-            setHasAcknowledgedSharedPseudo(true);
+    const handlePseudoSelect = (selectedPseudo, saveToLocalStorage = true) => {
+        if (selectedPseudo && selectedPseudo.length >= 4) {
+            console.log(
+                `Pseudo selected: ${selectedPseudo}, save: ${saveToLocalStorage}`
+            );
+            setPseudo(selectedPseudo);
+
+            // Fermer le sélecteur de pseudo
+            setShowPseudoSelector(false);
+
+            // Si l'utilisateur souhaite sauvegarder le pseudo
+            if (saveToLocalStorage) {
+                // Ajouter à la liste des pseudos récents
+                localStorage.pseudoManager.addPseudo(selectedPseudo);
+
+                // Mettre à jour la liste des pseudos stockés pour la prochaine fois
+                const updatedPseudos =
+                    localStorage.pseudoManager.getAllPseudos();
+                setStoredPseudos(updatedPseudos);
+            }
+        } else if (selectedPseudo === "Anonyme") {
+            // Cas spécial pour "Anonyme"
+            setPseudo("Anonyme");
+            setShowPseudoSelector(false);
         }
     };
 
     /**
-     * Gère le changement de pseudo
-     * @param {string} newPseudo - Nouveau pseudo
-     * @param {boolean} saveToLocalStorage - Indique si le pseudo doit être sauvegardé dans le localStorage
+     * Ouvre le sélecteur de pseudo
      */
-    const handlePseudoChange = (newPseudo, saveToLocalStorage = true) => {
-        if (newPseudo && newPseudo.length >= 4) {
-            console.log(`Changing pseudo to: ${newPseudo}`);
-            setPseudo(newPseudo);
-            setIsPseudoFromURL(false);
+    const openPseudoSelector = () => {
+        // Rafraîchir la liste des pseudos stockés
+        const savedPseudos = localStorage.pseudoManager.getAllPseudos();
+        setStoredPseudos(savedPseudos);
+        setShowPseudoSelector(true);
+    };
 
-            // Sauvegarder dans le localStorage uniquement si demandé
-            if (saveToLocalStorage) {
-                localStorage.userPreferences.savePseudo(newPseudo);
-            }
+    /**
+     * Supprime un pseudo spécifique de la liste stockée
+     * @param {string} pseudoToRemove - Pseudo à supprimer
+     */
+    const handleRemovePseudo = (pseudoToRemove) => {
+        console.log(`Removing pseudo: ${pseudoToRemove}`);
 
-            setShowGetPseudo(false);
+        // Supprimer le pseudo du localStorage
+        localStorage.pseudoManager.removePseudo(pseudoToRemove);
 
-            // Mettre à jour l'URL avec le nouveau pseudo uniquement s'il est sauvegardé
-            if (saveToLocalStorage) {
-                const urlParams = new URLSearchParams(window.location.search);
-                urlParams.set("p", newPseudo);
+        // Mettre à jour la liste des pseudos stockés
+        const updatedPseudos = localStorage.pseudoManager.getAllPseudos();
+        setStoredPseudos(updatedPseudos);
+    };
 
-                // Construire la nouvelle URL avec les paramètres mis à jour
-                const newUrl = `?${urlParams.toString()}`;
-                window.history.pushState({}, document.title, newUrl);
-            } else {
-                // Si on ne sauvegarde pas le pseudo, le retirer de l'URL
-                const urlParams = new URLSearchParams(window.location.search);
-                urlParams.delete("p");
+    /**
+     * Efface tous les pseudos stockés
+     */
+    const handleClearPseudos = () => {
+        console.log("Clearing all stored pseudos");
 
-                // Construire la nouvelle URL sans le pseudo
-                const newUrl = `?${urlParams.toString()}`;
-                window.history.pushState({}, document.title, newUrl);
-            }
+        // Confirmation avant suppression
+        if (
+            window.confirm(
+                "Es-tu sûr(e) de vouloir effacer tous les pseudos enregistrés ?"
+            )
+        ) {
+            // Supprimer tous les pseudos du localStorage
+            localStorage.pseudoManager.clearAllPseudos();
+
+            // Mettre à jour l'état
+            setStoredPseudos([]);
         }
     };
 
@@ -336,21 +325,6 @@ const App = () => {
                         </div>
                     )}
 
-                    {/* Notification de pseudo partagé */}
-                    {isPseudoFromURL && !hasAcknowledgedSharedPseudo && (
-                        <PseudoNotification
-                            pseudo={pseudo}
-                            onAdopt={adoptSharedPseudo}
-                            onCustomize={() => {
-                                setHasAcknowledgedSharedPseudo(true);
-                                setShowGetPseudo(true);
-                            }}
-                            onDismiss={() =>
-                                setHasAcknowledgedSharedPseudo(true)
-                            }
-                        />
-                    )}
-
                     {/* Menu de sélection des circuits et bouton de partage */}
                     {circuitData && (
                         <div className="mt-6 flex flex-wrap justify-center items-center gap-2 p-4 bg-white rounded-lg shadow-md">
@@ -398,24 +372,14 @@ const App = () => {
                         </div>
                     )}
 
-                    {/* Pseudo avec indication visuelle de la source */}
+                    {/* Affichage et bouton de changement du pseudo */}
                     <div className="mt-4 flex justify-center relative">
                         <button
-                            onClick={() => setShowGetPseudo(true)}
+                            onClick={openPseudoSelector}
                             className="bg-primary-600 text-white px-4 py-2 rounded-full hover:bg-primary-700 transition flex items-center"
                             title="Changer de pseudo"
                         >
-                            {isPseudoFromURL ? (
-                                <>
-                                    <i className="fas fa-link mr-2"></i>[
-                                    {pseudo}]
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fas fa-user mr-2"></i>[
-                                    {pseudo}]
-                                </>
-                            )}
+                            <i className="fas fa-user mr-2"></i>[{pseudo}]
                             <i className="fas fa-pencil-alt ml-2 text-xs"></i>
                         </button>
 
@@ -460,12 +424,13 @@ const App = () => {
             {/* Popups */}
             {showHelp && <Help onClose={() => setShowHelp(false)} />}
 
-            {showGetPseudo && (
-                <GetPseudo
-                    initialPseudo={pseudo}
-                    onSubmit={handlePseudoChange}
-                    onClose={() => setShowGetPseudo(false)}
-                    isFromURL={isPseudoFromURL}
+            {showPseudoSelector && (
+                <PseudoSelector
+                    storedPseudos={storedPseudos}
+                    onSubmit={handlePseudoSelect}
+                    canClose={false} // On force la sélection d'un pseudo
+                    onRemovePseudo={handleRemovePseudo}
+                    onClearPseudos={handleClearPseudos}
                 />
             )}
 
@@ -474,6 +439,7 @@ const App = () => {
                     onClose={() => setShowShareDialog(false)}
                     onShare={handleShare}
                     currentPseudo={pseudo}
+                    showPseudoOption={false} // Désactiver l'option de partage avec pseudo
                 />
             )}
         </div>

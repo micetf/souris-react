@@ -1,10 +1,10 @@
 Fred,0.08
 Fred,0.15
 Fred,0.28
+Paul,0.36
 Paul,0.45
 Fred,0.46
 Louis,0.5
 Fred,0.53
 Fred,0.6
 Fred,0.69
-Fred,0.77

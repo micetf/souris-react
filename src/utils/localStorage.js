@@ -232,7 +232,102 @@ export const userPreferences = {
     },
 };
 
+/**
+ * Gestion des pseudos précédemment utilisés
+ */
+export const pseudoManager = {
+    /**
+     * Récupère tous les pseudos stockés
+     * @returns {Array} - Liste des pseudos précédents (max 3)
+     */
+    getAllPseudos: () => {
+        try {
+            const storedPseudos = localStorage.getItem("sourisAllPseudos");
+            if (!storedPseudos) return [];
+            
+            const pseudoList = JSON.parse(storedPseudos);
+            if (!Array.isArray(pseudoList)) return [];
+            
+            // Filtrer les pseudos vides ou "Anonyme"
+            return pseudoList.filter(p => p && p !== "Anonyme" && p.length >= 4);
+        } catch (error) {
+            console.error("Erreur lors de la récupération des pseudos:", error);
+            return [];
+        }
+    },
+    
+    /**
+     * Ajoute un pseudo à la liste des pseudos stockés
+     * @param {string} pseudo - Pseudo à stocker
+     * @returns {boolean} - true si l'opération a réussi
+     */
+    addPseudo: (pseudo) => {
+        if (!pseudo || pseudo === "Anonyme" || pseudo.length < 4) return false;
+        
+        try {
+            // Récupérer la liste actuelle
+            const currentList = pseudoManager.getAllPseudos();
+            
+            // Si le pseudo est déjà dans la liste, le mettre en premier
+            const filteredList = currentList.filter(p => p !== pseudo);
+            
+            // Ajouter le nouveau pseudo au début (plus récent)
+            const newList = [pseudo, ...filteredList];
+            
+            // Garder seulement les 3 derniers pseudos (limite adaptée pour contexte scolaire)
+            const limitedList = newList.slice(0, 3);
+            
+            // Sauvegarder
+            localStorage.setItem("sourisAllPseudos", JSON.stringify(limitedList));
+            
+            return true;
+        } catch (error) {
+            console.error("Erreur lors de l'ajout du pseudo:", error);
+            return false;
+        }
+    },
+    
+    /**
+     * Supprime un pseudo de la liste des pseudos stockés
+     * @param {string} pseudo - Pseudo à supprimer
+     * @returns {boolean} - true si l'opération a réussi
+     */
+    removePseudo: (pseudo) => {
+        try {
+            // Récupérer la liste actuelle
+            const currentList = pseudoManager.getAllPseudos();
+            
+            // Filtrer le pseudo à supprimer
+            const newList = currentList.filter(p => p !== pseudo);
+            
+            // Sauvegarder
+            localStorage.setItem("sourisAllPseudos", JSON.stringify(newList));
+            
+            return true;
+        } catch (error) {
+            console.error("Erreur lors de la suppression du pseudo:", error);
+            return false;
+        }
+    },
+    
+    /**
+     * Efface tous les pseudos stockés
+     * @returns {boolean} - true si l'opération a réussi
+     */
+    clearAllPseudos: () => {
+        try {
+            localStorage.removeItem("sourisAllPseudos");
+            return true;
+        } catch (error) {
+            console.error("Erreur lors de la suppression de tous les pseudos:", error);
+            return false;
+        }
+    }
+};
+
+// Export par défaut
 export default {
     localRecords,
     userPreferences,
+    pseudoManager
 };

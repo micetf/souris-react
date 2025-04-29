@@ -2,58 +2,91 @@ import React from "react";
 import PropTypes from "prop-types";
 
 /**
- * Composant de notification pour informer l'utilisateur qu'il utilise un pseudo partagé via URL
+ * Composant pour partager un lien vers le circuit actuel
  *
  * @param {Object} props - Propriétés du composant
- * @param {string} props.pseudo - Le pseudo partagé
- * @param {function} props.onAdopt - Callback pour adopter le pseudo partagé
- * @param {function} props.onCustomize - Callback pour ouvrir la popup de changement de pseudo
- * @param {function} props.onDismiss - Callback pour fermer la notification sans action
- * @returns {JSX.Element} Le composant de notification
+ * @param {function} props.onClose - Fonction appelée à la fermeture du popup
+ * @param {function} props.onShare - Fonction appelée pour partager l'URL
+ * @param {string} props.currentPseudo - Pseudo actuel de l'utilisateur
+ * @param {boolean} [props.showPseudoOption=false] - Indique si l'option de partage du pseudo est disponible
+ * @returns {JSX.Element} Le composant dialogue de partage
  */
-const PseudoNotification = ({ pseudo, onAdopt, onCustomize, onDismiss }) => {
+const ShareDialog = ({
+    onClose,
+    onShare,
+    currentPseudo,
+    showPseudoOption = false,
+}) => {
     return (
-        <div className="mt-4 bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg shadow-md">
-            <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                    <i className="fas fa-info-circle text-blue-600 text-xl"></i>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl overflow-hidden max-w-md w-full">
+                <div className="bg-primary-600 p-4 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-white">
+                        Partager ce circuit
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="text-white hover:text-gray-200"
+                        aria-label="Fermer"
+                    >
+                        <i className="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-                <div className="ml-3 flex-grow">
-                    <h3 className="text-sm font-medium text-blue-800">
-                        Pseudo partagé
-                    </h3>
-                    <div className="mt-2 text-sm text-blue-700">
-                        <p>
-                            Tu utilises actuellement le pseudo{" "}
-                            <strong>{pseudo}</strong> provenant d'un lien
-                            partagé.
-                        </p>
-                        <p className="mt-1">
-                            Ce pseudo sera utilisé uniquement pour cette
-                            session, sauf si tu choisis de l'adopter.
+
+                <div className="p-6">
+                    <p className="mb-4 text-gray-700">
+                        Partage ce circuit avec tes amis pour qu'ils puissent
+                        s'entraîner sur le même parcours !
+                    </p>
+
+                    {/* Option de partage simple (sans pseudo) - Toujours disponible */}
+                    <div className="bg-gray-100 p-4 rounded-lg mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold text-primary-600">
+                                Partager le circuit uniquement
+                            </h3>
+                            <button
+                                onClick={() => onShare(false)}
+                                className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded-full text-sm transition-colors"
+                            >
+                                Copier
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                            Chaque personne jouera avec son propre pseudo.
                         </p>
                     </div>
-                    <div className="mt-4 flex space-x-3">
+
+                    {/* Option de partage avec pseudo (conditionnelle) */}
+                    {showPseudoOption &&
+                        currentPseudo &&
+                        currentPseudo !== "Anonyme" && (
+                            <div className="bg-gray-100 p-4 rounded-lg mb-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-semibold text-primary-600">
+                                        Partager avec ton pseudo
+                                    </h3>
+                                    <button
+                                        onClick={() => onShare(true)}
+                                        className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded-full text-sm transition-colors"
+                                    >
+                                        Copier
+                                    </button>
+                                </div>
+                                <p className="text-sm text-gray-600">
+                                    Les autres joueront sous ton pseudo (
+                                    {currentPseudo}) à moins qu'ils ne le
+                                    changent.
+                                </p>
+                            </div>
+                        )}
+
+                    <div className="flex justify-end mt-6">
                         <button
-                            type="button"
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium"
-                            onClick={onAdopt}
+                            onClick={onClose}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-full transition-colors"
                         >
-                            Adopter ce pseudo
-                        </button>
-                        <button
-                            type="button"
-                            className="bg-white hover:bg-gray-50 text-blue-700 border border-blue-300 px-3 py-1.5 rounded-md text-sm font-medium"
-                            onClick={onCustomize}
-                        >
-                            Utiliser mon pseudo
-                        </button>
-                        <button
-                            type="button"
-                            className="text-blue-600 hover:text-blue-800 px-3 py-1.5 text-sm font-medium"
-                            onClick={onDismiss}
-                        >
-                            <i className="fas fa-times mr-1"></i> Fermer
+                            Fermer
                         </button>
                     </div>
                 </div>
@@ -62,11 +95,11 @@ const PseudoNotification = ({ pseudo, onAdopt, onCustomize, onDismiss }) => {
     );
 };
 
-PseudoNotification.propTypes = {
-    pseudo: PropTypes.string.isRequired,
-    onAdopt: PropTypes.func.isRequired,
-    onCustomize: PropTypes.func.isRequired,
-    onDismiss: PropTypes.func.isRequired,
+ShareDialog.propTypes = {
+    onClose: PropTypes.func.isRequired,
+    onShare: PropTypes.func.isRequired,
+    currentPseudo: PropTypes.string,
+    showPseudoOption: PropTypes.bool,
 };
 
-export default PseudoNotification;
+export default ShareDialog;
