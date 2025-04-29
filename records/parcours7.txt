@@ -1,6 +1,0 @@
-Fred,2.13
-Fred,2.88
-Fred,3.27
-Fred,4.55
-Fred,4.72
-RAZ,3600

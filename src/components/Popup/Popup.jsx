@@ -10,10 +10,19 @@ import PropTypes from "prop-types";
  * @param {string} props.type - Type de popup ('info', 'success', 'error')
  * @param {function} props.onClose - Fonction appelée à la fermeture du popup
  * @param {number} [props.time] - Temps réalisé (pour les popups de résultat)
+ * @param {boolean} [props.isNewRecord] - Indique si c'est un nouveau record personnel
  * @param {ReactNode} [props.children] - Contenu supplémentaire
  * @returns {JSX.Element} Le composant popup
  */
-const Popup = ({ title, message, type = "info", onClose, time, children }) => {
+const Popup = ({
+    title,
+    message,
+    type = "info",
+    onClose,
+    time,
+    isNewRecord,
+    children,
+}) => {
     // Détermine les styles en fonction du type de popup
     const getStyles = () => {
         switch (type) {
@@ -36,9 +45,6 @@ const Popup = ({ title, message, type = "info", onClose, time, children }) => {
     };
 
     const styles = getStyles();
-
-    // Détecte si c'est un nouveau record personnel
-    const isNewRecord = type === "success" && time !== undefined;
 
     // Récupération du numéro de parcours depuis l'URL pour le fond du popup
     const getCircuitNumberFromUrl = () => {
@@ -71,7 +77,7 @@ const Popup = ({ title, message, type = "info", onClose, time, children }) => {
                         <p className="text-gray-800 mb-6 text-center text-lg">
                             {message}
 
-                            {isNewRecord && (
+                            {type === "success" && isNewRecord && (
                                 <span className="block mt-2 text-green-600 font-bold animate-pulse">
                                     Nouveau record personnel !
                                 </span>
@@ -101,6 +107,7 @@ Popup.propTypes = {
     type: PropTypes.oneOf(["info", "success", "error"]),
     onClose: PropTypes.func.isRequired,
     time: PropTypes.number,
+    isNewRecord: PropTypes.bool,
     children: PropTypes.node,
 };
 

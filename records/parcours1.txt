@@ -1,10 +1,4 @@
-Fred,0.25
-Fred,0.62
-Fred,0.76
-Fred,0.77
-Fred,1.07
-Fred,1.2
-Fred,1.2
-Fred,1.5
-Fred,1.78
-Fred,1.97
+Fred,0.28
+Fred,0.53
+Fred,1.31
+RAZ,3600

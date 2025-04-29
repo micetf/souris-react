@@ -18,7 +18,8 @@ const API_BASE_URL = "/api";
 export const getRecords = async (circuitNumber) => {
     try {
         // Construction de l'URL avec le format correct
-        const url = `${API_BASE_URL}/records.php?parcours=parcours${circuitNumber}`;
+        // L'API attend simplement "parcours=1", pas "parcours=parcours1"
+        const url = `${API_BASE_URL}/records.php?parcours=${circuitNumber}`;
 
         console.log(
             `[API] Récupération des records pour le circuit ${circuitNumber} (${url})`
@@ -64,15 +65,17 @@ export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
         // Convertir le temps en centièmes de secondes (format attendu par l'API)
         const chronoValue = Math.round(chrono * 100);
 
-        // Générer une clé de sécurité
+        // Générer une clé de sécurité - attendre la résolution de la promesse
         const key = await security.generateSecurityKey(chronoValue, token);
 
-        const formData = new FormData();
-        formData.append("parcours", parcours);
-        formData.append("pseudo", pseudo);
-        formData.append("chrono", chronoValue);
-        formData.append("token", token);
-        formData.append("key", key);
+        // Création des données sous forme JSON pour l'API
+        const recordData = {
+            parcours: parcours,
+            pseudo: pseudo,
+            chrono: chronoValue,
+            token: token,
+            key: key,
+        };
 
         console.log(
             `[API] Sauvegarde d'un record pour le circuit ${parcours} (${chrono}s, ${pseudo})`
@@ -80,7 +83,10 @@ export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
 
         const response = await fetch(`${API_BASE_URL}/records.php`, {
             method: "POST",
-            body: formData,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(recordData),
         });
 
         if (!response.ok) {

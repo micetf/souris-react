@@ -44,9 +44,16 @@ export const generateSecurityKey = async (chrono, token) => {
         );
 
         // Convertir le résultat en chaîne hexadécimale
-        return Array.from(new Uint8Array(signature))
+        const hexKey = Array.from(new Uint8Array(signature))
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
+
+        console.log(
+            `Generated security key for chrono ${chrono} with token ${token.substring(0, 6)}...`
+        );
+        console.log(`Key: ${hexKey.substring(0, 10)}...`);
+
+        return hexKey;
     } catch (error) {
         console.error(
             "Erreur lors de la génération de la clé de sécurité:",

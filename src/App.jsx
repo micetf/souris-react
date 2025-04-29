@@ -6,7 +6,8 @@ import Loading from "./components/common/Loading";
 import Help from "./components/Popup/Help";
 import GetPseudo from "./components/Popup/GetPseudo";
 import useCircuit from "./hooks/useCircuit";
-import api from "./utils/api";
+import useRecords from "./hooks/useRecords"; // Importation du hook useRecords
+import localStorage from "./utils/localStorage"; // Import direct pour clarté
 
 /**
  * Composant principal de l'application
@@ -15,37 +16,39 @@ const App = () => {
     // Récupérer le numéro de circuit depuis l'URL
     const getInitialCircuitNumber = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        return parseInt(urlParams.get("c")) || 1;
+        const circuitFromUrl = parseInt(urlParams.get("c")) || 1;
+
+        // Utiliser le circuit sauvegardé si disponible, sinon celui de l'URL
+        const lastCircuit = localStorage.userPreferences.getLastCircuit();
+        return circuitFromUrl || lastCircuit || 1;
     };
 
     // États
     const [pseudo, setPseudo] = useState(
-        localStorage.getItem("sourisPseudo") || "Anonyme"
+        localStorage.userPreferences.getPseudo() || "Anonyme"
     );
     const [showHelp, setShowHelp] = useState(false);
     const [showGetPseudo, setShowGetPseudo] = useState(false);
-    const [personalRecord, setPersonalRecord] = useState(null);
 
     // Utiliser le hook useCircuit pour charger et gérer le circuit
-    const { circuitData, loading, error, changeCircuit } = useCircuit(
-        getInitialCircuitNumber()
-    );
+    const { circuitData, loading, error, changeCircuit, circuitNumber } =
+        useCircuit(getInitialCircuitNumber());
 
-    // Vérifier si l'utilisateur a un record personnel
+    // Utiliser le hook useRecords pour gérer les records
+    const { personalRecord, saveRecord, isNewRecord, lastSavedRecord } =
+        useRecords(circuitNumber);
+
+    // Vérifier si un pseudo existe déjà
     useEffect(() => {
-        if (circuitData) {
-            const record = api.localRecords.getRecord(
-                circuitData.circuitNumber
-            );
-            setPersonalRecord(record);
-
-            // Vérifier si un pseudo existe déjà
-            const savedPseudo = localStorage.getItem("sourisPseudo");
-            if (!savedPseudo || savedPseudo.length < 4) {
-                setShowGetPseudo(true);
-            }
+        const savedPseudo = localStorage.userPreferences.getPseudo();
+        if (
+            !savedPseudo ||
+            savedPseudo.length < 4 ||
+            savedPseudo === "Anonyme"
+        ) {
+            setShowGetPseudo(true);
         }
-    }, [circuitData]);
+    }, []);
 
     /**
      * Gère le changement de circuit
@@ -61,10 +64,6 @@ const App = () => {
 
         // Changer le circuit
         await changeCircuit(circuitNumber);
-
-        // Vérifier si l'utilisateur a un record personnel pour ce circuit
-        const record = api.localRecords.getRecord(circuitNumber);
-        setPersonalRecord(record);
     };
 
     /**
@@ -73,29 +72,38 @@ const App = () => {
      * @param {number} time - Temps réalisé (en secondes)
      */
     const handleGameEnd = async (result, time) => {
+        console.log(`Game ended with result: ${result}, time: ${time}s`);
+
         if (result === "win" && time && circuitData) {
-            // Sauvegarder le record local
-            const isNewRecord = api.localRecords.saveRecord(
-                circuitData.circuitNumber,
-                time
-            );
+            // Vérifier si c'est un nouveau record
+            const newRecord = isNewRecord(time);
+            console.log(`Is new record: ${newRecord}`);
 
-            if (isNewRecord) {
-                setPersonalRecord(time);
-            }
+            if (newRecord) {
+                console.log(
+                    `Saving new record: ${time}s for circuit ${circuitData.circuitNumber}`
+                );
 
-            // Envoyer le record au serveur
-            try {
-                await api.saveRecord({
-                    parcours: circuitData.circuitNumber,
-                    pseudo: pseudo,
-                    chrono: time,
-                    token: circuitData.sessionToken,
-                });
+                // Sauvegarder le record via le hook
+                try {
+                    const saveResult = await saveRecord({
+                        pseudo: pseudo,
+                        time: time,
+                        token: circuitData.sessionToken,
+                    });
 
-                // Recharger les records globaux (via le composant Records qui gère ses propres données)
-            } catch (error) {
-                console.error("Erreur lors de la sauvegarde du record:", error);
+                    console.log("Record save result:", saveResult);
+
+                    // Gérer le retour (succès ou échec)
+                    if (!saveResult.success) {
+                        console.error("Error saving record:", saveResult.error);
+                    }
+                } catch (error) {
+                    console.error(
+                        "Erreur lors de la sauvegarde du record:",
+                        error
+                    );
+                }
             }
         }
     };
@@ -106,8 +114,9 @@ const App = () => {
      */
     const handlePseudoChange = (newPseudo) => {
         if (newPseudo && newPseudo.length >= 4) {
+            console.log(`Changing pseudo to: ${newPseudo}`);
             setPseudo(newPseudo);
-            localStorage.setItem("sourisPseudo", newPseudo);
+            localStorage.userPreferences.savePseudo(newPseudo);
             setShowGetPseudo(false);
         }
     };
@@ -169,7 +178,21 @@ const App = () => {
                     {/* Record personnel */}
                     {personalRecord && (
                         <div className="mt-4 bg-green-700 text-white p-3 rounded-lg text-center shadow-md">
-                            Ton record personnel : {personalRecord.toFixed(2)} s
+                            Ton record personnel :{" "}
+                            {parseFloat(personalRecord).toFixed(2)} s
+                        </div>
+                    )}
+
+                    {/* Dernier record sauvegardé */}
+                    {lastSavedRecord && lastSavedRecord.isNewPersonalRecord && (
+                        <div className="mt-2 bg-yellow-100 text-yellow-800 p-2 rounded-lg text-center shadow-sm animate-pulse">
+                            Nouveau record personnel !{" "}
+                            {parseFloat(lastSavedRecord.time).toFixed(2)} s
+                            {lastSavedRecord.rank && (
+                                <span className="ml-2 font-bold">
+                                    (Rang {lastSavedRecord.rank} au classement)
+                                </span>
+                            )}
                         </div>
                     )}
 

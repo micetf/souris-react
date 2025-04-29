@@ -23,8 +23,21 @@ const Records = ({ circuitNumber }) => {
                 setLoading(true);
                 setError(null);
 
+                console.log(
+                    `Component Records: Fetching records for circuit ${circuitNumber}`
+                );
                 const response = await api.getRecords(circuitNumber);
-                setRecords(response.records || []);
+
+                if (response && response.records) {
+                    setRecords(response.records);
+                    console.log(`Received ${response.records.length} records`);
+                } else {
+                    console.warn(
+                        "Received empty or invalid response:",
+                        response
+                    );
+                    setRecords([]);
+                }
             } catch (err) {
                 console.error("Erreur lors du chargement des records:", err);
                 setError(

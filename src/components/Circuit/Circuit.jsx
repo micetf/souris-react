@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import useGame from "../../hooks/useGame";
 import Popup from "../Popup/Popup";
 import imageUtils from "../../utils/imageProcessing";
+import localStorage from "../../utils/localStorage";
 
 /**
  * Composant principal du jeu affichant le circuit et gérant les interactions
@@ -24,10 +25,17 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
         title: "",
         message: "",
         type: "info",
+        isNewRecord: false,
     });
     const [imgOffset, setImgOffset] = useState({ left: 0, top: 0 });
     const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
     const [originalSize, setOriginalSize] = useState({ width: 0, height: 0 });
+    const [currentRecord, setCurrentRecord] = useState(null);
+
+    // Extraire le numéro du circuit à partir du nom
+    const circuitNumber = circuitName
+        ? parseInt(circuitName.replace(/[^0-9]/g, ""))
+        : null;
 
     // Trouver les positions de départ dans le bitmap
     const startPositions = imageUtils.findStartPositions(bitmap);
@@ -35,6 +43,17 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
     // Hook useGame pour la logique de jeu
     const { gameState, elapsedTime, startGame, resetGame, updatePosition } =
         useGame(bitmap);
+
+    // Charger le record actuel
+    useEffect(() => {
+        if (circuitNumber) {
+            const record = localStorage.localRecords.getRecord(circuitNumber);
+            setCurrentRecord(record);
+            console.log(
+                `Circuit ${circuitNumber} loaded, current record: ${record}s`
+            );
+        }
+    }, [circuitNumber]);
 
     // Stocker les dimensions originales de l'image
     useEffect(() => {
@@ -108,6 +127,21 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
         [imgOffset, imgSize, originalSize]
     );
 
+    // Vérifier si un temps est un nouveau record personnel
+    const checkIfNewRecord = useCallback(
+        (time) => {
+            if (!circuitNumber) return false;
+
+            console.log(
+                `Checking if ${time}s is a new record. Current record: ${currentRecord}s`
+            );
+
+            // Si pas de record actuel ou temps meilleur que le record
+            return !currentRecord || time < currentRecord;
+        },
+        [circuitNumber, currentRecord]
+    );
+
     // Gestion des événements souris
     const handleMouseMove = useCallback(
         (e) => {
@@ -130,6 +164,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                                 title: "Perdu !",
                                 message: "Tu as quitté le chemin bleu.",
                                 type: "error",
+                                isNewRecord: false,
                             });
                             setShowPopup(true);
 
@@ -141,17 +176,29 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
 
                         case "finish":
                             const timeString = elapsedTime.toFixed(2);
+                            const isNewRecord = checkIfNewRecord(elapsedTime);
+
+                            console.log(
+                                `Game finished! Time: ${timeString}s, New record: ${isNewRecord}`
+                            );
+
                             setPopupContent({
                                 title: "Bravo !",
                                 message: `Tu as réussi en ${timeString} secondes !`,
                                 type: "success",
                                 time: elapsedTime,
+                                isNewRecord: isNewRecord,
                             });
                             setShowPopup(true);
 
-                            // Notifier le composant parent
+                            // Notifier le composant parent avec le temps exact
                             if (onGameEnd) {
                                 onGameEnd("win", elapsedTime);
+                            }
+
+                            // Si c'est un nouveau record, mettre à jour l'état local
+                            if (isNewRecord) {
+                                setCurrentRecord(elapsedTime);
                             }
                             break;
 
@@ -184,6 +231,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
             screenToBitmapCoordinates,
             startGame,
             updatePosition,
+            checkIfNewRecord,
         ]
     );
 
@@ -197,6 +245,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                     title: "Perdu !",
                     message: "Tu as cliqué pendant le jeu.",
                     type: "error",
+                    isNewRecord: false,
                 });
                 setShowPopup(true);
 
@@ -217,6 +266,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                 title: "Perdu !",
                 message: "Tu as quitté la zone de jeu.",
                 type: "error",
+                isNewRecord: false,
             });
             setShowPopup(true);
 
@@ -280,6 +330,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
                     type={popupContent.type}
                     onClose={handleClosePopup}
                     time={popupContent.time}
+                    isNewRecord={popupContent.isNewRecord}
                 />
             )}
         </div>

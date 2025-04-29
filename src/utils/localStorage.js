@@ -11,10 +11,27 @@ export const localRecords = {
      * @returns {Object} - Records stockés localement
      */
     init: () => {
-        if (!localStorage.getItem("sourisRecords")) {
-            localStorage.setItem("sourisRecords", JSON.stringify({}));
+        try {
+            if (!localStorage.getItem("sourisRecords")) {
+                localStorage.setItem("sourisRecords", JSON.stringify({}));
+            }
+            const records = JSON.parse(localStorage.getItem("sourisRecords"));
+
+            // Vérification de l'intégrité des données
+            if (typeof records !== "object" || records === null) {
+                console.warn("Records corrompus, réinitialisation");
+                localStorage.setItem("sourisRecords", JSON.stringify({}));
+                return {};
+            }
+
+            return records;
+        } catch (error) {
+            console.error(
+                "Erreur lors de l'initialisation des records:",
+                error
+            );
+            return {};
         }
-        return JSON.parse(localStorage.getItem("sourisRecords"));
     },
 
     /**
@@ -24,23 +41,44 @@ export const localRecords = {
      * @returns {boolean} - true si c'est un nouveau record, false sinon
      */
     saveRecord: (parcours, chrono) => {
-        let records = localRecords.init();
+        try {
+            console.log(
+                `Saving local record for circuit ${parcours}: ${chrono}s`
+            );
 
-        // S'assurer que les deux valeurs sont des nombres pour la comparaison
-        const oldRecord = parseFloat(records[parcours] || Infinity);
-        const newTime = parseFloat(chrono);
+            let records = localRecords.init();
 
-        // S'assurer que les valeurs sont valides
-        if (isNaN(newTime)) return false;
+            // S'assurer que parcours est une chaîne pour l'utiliser comme clé
+            const parcoursKey = parcours.toString();
 
-        // Pour un jeu de vitesse, un temps plus PETIT est meilleur
-        if (newTime < oldRecord) {
-            records[parcours] = newTime; // Stocker comme nombre
-            localStorage.setItem("sourisRecords", JSON.stringify(records));
-            return true; // Nouveau record
+            // S'assurer que les deux valeurs sont des nombres pour la comparaison
+            const oldRecord = parseFloat(records[parcoursKey] || Infinity);
+            const newTime = parseFloat(chrono);
+
+            // S'assurer que les valeurs sont valides
+            if (isNaN(newTime) || newTime <= 0) {
+                console.warn(`Invalid time value: ${chrono}`);
+                return false;
+            }
+
+            console.log(`Old record: ${oldRecord}s, New record: ${newTime}s`);
+
+            // Pour un jeu de vitesse, un temps plus PETIT est meilleur
+            if (newTime < oldRecord) {
+                records[parcoursKey] = newTime; // Stocker comme nombre
+                localStorage.setItem("sourisRecords", JSON.stringify(records));
+                console.log(`New record saved: ${newTime}s`);
+                return true; // Nouveau record
+            }
+
+            return false; // Pas de nouveau record
+        } catch (error) {
+            console.error(
+                "Erreur lors de la sauvegarde du record local:",
+                error
+            );
+            return false;
         }
-
-        return false; // Pas de nouveau record
     },
 
     /**
@@ -49,8 +87,20 @@ export const localRecords = {
      * @returns {number|null} - Le record ou null s'il n'existe pas
      */
     getRecord: (parcours) => {
-        const records = localRecords.init();
-        return records[parcours] || null;
+        try {
+            const records = localRecords.init();
+            const parcoursKey = parcours.toString();
+            const record = records[parcoursKey];
+
+            // S'assurer que la valeur est un nombre
+            return record !== undefined ? parseFloat(record) : null;
+        } catch (error) {
+            console.error(
+                "Erreur lors de la récupération du record local:",
+                error
+            );
+            return null;
+        }
     },
 
     /**
@@ -67,15 +117,21 @@ export const localRecords = {
      * @returns {boolean} - true si supprimé, false sinon
      */
     deleteRecord: (parcours) => {
-        let records = localRecords.init();
+        try {
+            let records = localRecords.init();
+            const parcoursKey = parcours.toString();
 
-        if (records[parcours]) {
-            delete records[parcours];
-            localStorage.setItem("sourisRecords", JSON.stringify(records));
-            return true;
+            if (records[parcoursKey] !== undefined) {
+                delete records[parcoursKey];
+                localStorage.setItem("sourisRecords", JSON.stringify(records));
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error("Erreur lors de la suppression du record:", error);
+            return false;
         }
-
-        return false;
     },
 
     /**
@@ -104,7 +160,12 @@ export const userPreferences = {
      */
     savePseudo: (pseudo) => {
         try {
-            localStorage.setItem("sourisPseudo", pseudo);
+            if (!pseudo || pseudo.trim().length < 4) {
+                console.warn("Pseudo invalide, minimum 4 caractères requis");
+                return false;
+            }
+
+            localStorage.setItem("sourisPseudo", pseudo.trim());
             return true;
         } catch (error) {
             console.error("Erreur lors de la sauvegarde du pseudo:", error);
@@ -117,7 +178,13 @@ export const userPreferences = {
      * @returns {string} - Pseudo sauvegardé ou 'Anonyme' par défaut
      */
     getPseudo: () => {
-        return localStorage.getItem("sourisPseudo") || "Anonyme";
+        try {
+            const pseudo = localStorage.getItem("sourisPseudo");
+            return pseudo && pseudo.trim().length >= 4 ? pseudo : "Anonyme";
+        } catch (error) {
+            console.error("Erreur lors de la récupération du pseudo:", error);
+            return "Anonyme";
+        }
     },
 
     /**
@@ -127,7 +194,13 @@ export const userPreferences = {
      */
     saveLastCircuit: (circuit) => {
         try {
-            localStorage.setItem("sourisLastCircuit", circuit.toString());
+            const circuitNumber = parseInt(circuit);
+            if (isNaN(circuitNumber) || circuitNumber < 1) {
+                console.warn("Numéro de circuit invalide");
+                return false;
+            }
+
+            localStorage.setItem("sourisLastCircuit", circuitNumber.toString());
             return true;
         } catch (error) {
             console.error(
@@ -143,8 +216,19 @@ export const userPreferences = {
      * @returns {number} - Numéro du dernier circuit ou 1 par défaut
      */
     getLastCircuit: () => {
-        const circuit = localStorage.getItem("sourisLastCircuit");
-        return circuit ? parseInt(circuit, 10) : 1;
+        try {
+            const circuit = localStorage.getItem("sourisLastCircuit");
+            const circuitNumber = circuit ? parseInt(circuit, 10) : 1;
+            return !isNaN(circuitNumber) && circuitNumber > 0
+                ? circuitNumber
+                : 1;
+        } catch (error) {
+            console.error(
+                "Erreur lors de la récupération du dernier circuit:",
+                error
+            );
+            return 1;
+        }
     },
 };
 

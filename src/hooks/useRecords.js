@@ -24,6 +24,7 @@ const useRecords = (circuitNumber) => {
             setLoading(true);
             setError(null);
 
+            console.log(`Fetching records for circuit ${circuitNumber}`);
             const response = await api.getRecords(circuitNumber);
             setGlobalRecords(response.records || []);
 
@@ -59,15 +60,33 @@ const useRecords = (circuitNumber) => {
                 setLoading(true);
                 setError(null);
 
-                // Sauvegarder localement d'abord
-                const isNewPersonalRecord =
-                    localStorage.localRecords.saveRecord(circuitNumber, time);
+                console.log(
+                    `Saving record for circuit ${circuitNumber}: ${time}s by ${pseudo}`
+                );
 
+                // Vérifier si c'est un nouveau record personnel
+                const isNewPersonalRecord =
+                    !personalRecord || time < personalRecord;
+                console.log(
+                    `Is new personal record: ${isNewPersonalRecord}, current: ${personalRecord}s, new: ${time}s`
+                );
+
+                // Sauvegarder localement d'abord si c'est un nouveau record
                 if (isNewPersonalRecord) {
+                    const saved = localStorage.localRecords.saveRecord(
+                        circuitNumber,
+                        time
+                    );
+                    console.log(`Saved locally: ${saved}`);
+
+                    // Mettre à jour l'état du record personnel
                     setPersonalRecord(time);
                 }
 
                 // Puis envoyer au serveur
+                console.log(
+                    `Sending record to server for circuit ${circuitNumber}`
+                );
                 const result = await api.saveRecord({
                     parcours: circuitNumber,
                     pseudo,
@@ -75,8 +94,20 @@ const useRecords = (circuitNumber) => {
                     token,
                 });
 
+                console.log("Server response:", result);
+
+                // Gérer les erreurs de l'API
+                if (!result.success && result.error) {
+                    setError(`Erreur serveur: ${result.error}`);
+                    return {
+                        success: false,
+                        error: result.error,
+                        isNewPersonalRecord,
+                    };
+                }
+
                 // Mettre à jour les records globaux
-                if (result.records) {
+                if (result.records && Array.isArray(result.records)) {
                     setGlobalRecords(result.records);
                 } else {
                     // Si le serveur ne renvoie pas la liste mise à jour, rafraîchir manuellement
@@ -84,16 +115,19 @@ const useRecords = (circuitNumber) => {
                 }
 
                 // Enregistrer ce record comme le dernier sauvegardé
-                setLastSavedRecord({
+                const savedRecord = {
                     time,
                     isNewPersonalRecord,
                     rank: result.newRank || null,
                     success: result.success,
-                });
+                };
+                setLastSavedRecord(savedRecord);
+                console.log("Last saved record updated:", savedRecord);
 
                 return {
                     success: true,
                     isNewPersonalRecord,
+                    newRank: result.newRank,
                     ...result,
                 };
             } catch (err) {
@@ -110,7 +144,7 @@ const useRecords = (circuitNumber) => {
                 setLoading(false);
             }
         },
-        [circuitNumber, fetchGlobalRecords]
+        [circuitNumber, fetchGlobalRecords, personalRecord]
     );
 
     /**
