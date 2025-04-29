@@ -17,11 +17,11 @@ export default defineConfig({
         open: true,
         // Proxy pour les API PHP via Docker
         proxy: {
-            "/api": {
-                target: "http://localhost:8080", // Pointez vers votre conteneur Docker
+            // Mise à jour pour utiliser le même chemin qu'en production
+            "/souris/api": {
+                target: "http://localhost:8080",
                 changeOrigin: true,
-                secure: false,
-                rewrite: (path) => path,
+                rewrite: (path) => path.replace(/^\/souris\/api/, "/api"),
             },
         },
     },

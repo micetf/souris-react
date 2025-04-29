@@ -4,6 +4,7 @@ import useGame from "../../hooks/useGame";
 import Popup from "../Popup/Popup";
 import imageUtils from "../../utils/imageProcessing";
 import localStorage from "../../utils/localStorage";
+import { getAssetPath } from "../../utils/assetPath";
 
 /**
  * Composant principal du jeu affichant le circuit et gérant les interactions
@@ -288,7 +289,7 @@ const Circuit = ({ circuitName, bitmap, imageUrl, onGameEnd }) => {
     // Style du curseur en fonction de l'état du jeu
     const getCursorStyle = () => {
         if (gameState === "playing") {
-            return 'url("/images/coccinelle.cur"), pointer';
+            return `url("${getAssetPath("images/coccinelle.cur")}"), pointer`;
         }
         return "auto";
     };

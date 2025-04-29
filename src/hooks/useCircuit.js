@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import imageProcessing from "../utils/imageProcessing";
 import security from "../utils/security";
 import localStorage from "../utils/localStorage";
+import { getAssetPath } from "../utils/assetPath";
 
 /**
  * Hook personnalisé pour gérer le chargement et le traitement des circuits
@@ -48,7 +49,7 @@ const useCircuit = (initialCircuitNumber = 1) => {
                 circuitName: `parcours${number}`,
                 totalCircuits: 17, // Nombre total de circuits disponibles
                 sessionToken,
-                imageUrl: `/images/parcours${number}.png`,
+                imageUrl: getAssetPath(`images/parcours${number}.png`),
                 startPositions: imageProcessing.findStartPositions(bitmap),
                 endPositions: imageProcessing.findEndPositions(bitmap),
             };

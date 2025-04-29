@@ -5,9 +5,26 @@
 import security from "./security";
 
 /**
- * URL de base de l'API (pour faciliter les changements d'environnement)
+ * Utilitaire pour générer des chemins d'accès aux APIs
+ * compatibles avec la configuration de base URL de Vite
  */
-const API_BASE_URL = "/api";
+export const getApiPath = (endpoint) => {
+    // Récupérer la base URL depuis l'environnement Vite
+    const baseUrl = import.meta.env.BASE_URL || "/";
+
+    // Supprimer le slash initial de l'endpoint si la base URL se termine par un slash
+    const normalizedEndpoint = endpoint.startsWith("/")
+        ? endpoint.substring(1)
+        : endpoint;
+
+    // Construire le chemin complet
+    return `${baseUrl}${normalizedEndpoint}`;
+};
+
+/**
+ * URL de base de l'API (utilise la base URL de Vite)
+ */
+const API_BASE_URL = getApiPath("api");
 
 /**
  * Récupère les records pour un circuit spécifique
@@ -128,4 +145,5 @@ export default {
     getRecords,
     saveRecord,
     localRecords,
+    getApiPath,
 };

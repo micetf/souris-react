@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { getAssetPath } from "../../utils/assetPath";
 
 /**
  * Composant popup générique utilisé pour afficher des messages, des résultats ou d'autres informations
@@ -52,12 +53,17 @@ const Popup = ({
         return urlParams.get("c") || "1";
     };
 
+    // Construire le chemin de l'image de fond avec getAssetPath
+    const backgroundImagePath = getAssetPath(
+        `images/parcours${getCircuitNumberFromUrl()}.png`
+    );
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <div
                 className="bg-white rounded-lg shadow-xl overflow-hidden max-w-md w-full"
                 style={{
-                    backgroundImage: `url(/images/parcours${getCircuitNumberFromUrl()}.png)`,
+                    backgroundImage: `url(${backgroundImagePath})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                 }}

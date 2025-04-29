@@ -12,6 +12,10 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 error_log('Records API called with method: ' . $_SERVER['REQUEST_METHOD']);
 
+// Désactiver la mise en cache
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 // Autoriser les requêtes CORS pour le développement
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -45,8 +49,8 @@ function getRecordsFilePath($parcours)
     // Assurer que le parcours est numérique
     $parcours = (int)$parcours;
 
-    // Construire le chemin du fichier (format: parcours1.txt, parcours2.txt, etc.)
-    return '../records/parcours' . $parcours . '.txt';
+    // Construire le chemin absolu en utilisant __DIR__ (dossier du script actuel)
+    return dirname(__DIR__) . '/records/parcours' . $parcours . '.txt';
 }
 
 /**
