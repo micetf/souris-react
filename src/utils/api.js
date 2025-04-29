@@ -77,7 +77,13 @@ export const getRecords = async (circuitNumber) => {
  * @param {string} recordData.token - Token de sécurité
  * @returns {Promise<Object>} - Résultat de la sauvegarde
  */
-export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
+export const saveRecord = async ({
+    parcours,
+    pseudo,
+    chrono,
+    token,
+    debugContext,
+}) => {
     try {
         // Convertir le temps en centièmes de secondes (format attendu par l'API)
         const chronoValue = Math.round(chrono * 100);
@@ -92,6 +98,7 @@ export const saveRecord = async ({ parcours, pseudo, chrono, token }) => {
             chrono: chronoValue,
             token: token,
             key: key,
+            debugContext: debugContext || "unknown",
         };
 
         console.log(

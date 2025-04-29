@@ -69,10 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $parcours = $_GET['parcours'];
-    error_log('GET request for parcours: ' . $parcours);
+    $debugContext = isset($_GET['debugContext']) ? $_GET['debugContext'] : 'GET_unknown';
+    error_log('GET request for parcours: ' . $parcours . ' (context: ' . $debugContext . ')');
 
     $fichier = getRecordsFilePath($parcours);
-    error_log('Records file path: ' . $fichier);
+    error_log('Records file path: ' . $fichier . ' (context: ' . $debugContext . ')');
 
     // Vérification de l'existence du fichier et création si nécessaire
     if (!file_exists($fichier)) {
@@ -84,13 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         // Créer un fichier avec une entrée par défaut
         file_put_contents($fichier, 'RAZ,3600'.PHP_EOL);
-        error_log('Created new records file with default entry');
+        error_log('Created new records file with default entry (context: ' . $debugContext . ')');
     }
 
     // Lecture du fichier de records
     $records = [];
     $enregs = file($fichier);
-    error_log('Read ' . count($enregs) . ' records from file');
+    error_log('Read ' . count($enregs) . ' records from file (context: ' . $debugContext . ')');
 
     foreach ($enregs as $cle => $enreg) {
         $infos = explode(',', trim($enreg));
@@ -103,7 +104,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     // Réponse JSON
-    echo json_encode(['records' => $records]);
+    $response = [
+        'records' => $records,
+        'debugContext' => $debugContext
+    ];
+    echo json_encode($response);
     exit;
 }
 
@@ -131,17 +136,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log('Form data received: ' . json_encode($_POST));
     }
 
+    // Récupérer le contexte de débogage
+    $debugContext = isset($_POST['debugContext']) ? $_POST['debugContext'] : 'POST_unknown';
+    error_log('POST request with debug context: ' . $debugContext);
+
     // Vérification des paramètres
     $requiredParams = ['parcours', 'pseudo', 'chrono', 'token'];
     foreach ($requiredParams as $param) {
         if (!isset($_POST[$param])) {
             http_response_code(400);
             $errorMessage = 'Le paramètre "'.$param.'" est requis';
-            error_log('Error: ' . $errorMessage);
+            error_log('Error in context ' . $debugContext . ': ' . $errorMessage);
             echo json_encode([
                 'error' => 'Paramètre manquant',
                 'message' => $errorMessage,
-                'received' => $_POST
+                'received' => $_POST,
+                'context' => $debugContext
             ]);
             exit;
         }
@@ -153,16 +163,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['token'];
     $fichier = getRecordsFilePath($parcours);
 
-    error_log('Processing record: parcours=' . $parcours . ', pseudo=' . $pseudo . ', chrono=' . $chrono);
-    error_log('Records file: ' . $fichier);
+    error_log('Processing record: parcours=' . $parcours . ', pseudo=' . $pseudo . ', chrono=' . $chrono . ' (context: ' . $debugContext . ')');
+    error_log('Records file: ' . $fichier . ' (context: ' . $debugContext . ')');
 
     // Génération de la clé de sécurité
     if (!isset($_POST['key']) && isset($_POST['chrono']) && isset($_POST['token'])) {
         $key = hash_hmac('sha256', "MiCetF".$chrono, $token);
-        error_log('Generated key: ' . $key);
+        error_log('Generated key: ' . $key . ' (context: ' . $debugContext . ')');
     } else {
         $key = isset($_POST['key']) ? $_POST['key'] : '';
-        error_log('Using provided key: ' . $key);
+        error_log('Using provided key: ' . $key . ' (context: ' . $debugContext . ')');
     }
 
     $newRecord = '';
@@ -176,29 +186,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dir = dirname($fichier);
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
-            error_log('Created directory: ' . $dir);
+            error_log('Created directory: ' . $dir . ' (context: ' . $debugContext . ')');
         }
 
         // Créer un fichier avec une entrée par défaut
         file_put_contents($fichier, 'RAZ,3600'.PHP_EOL);
-        error_log('Created new records file with default entry');
+        error_log('Created new records file with default entry (context: ' . $debugContext . ')');
     }
 
     // Vérification de la clé de sécurité
     $expectedKey = hash_hmac('sha256', "MiCetF".$chrono, $token);
-    error_log('Expected key: ' . $expectedKey);
-    error_log('Provided key: ' . $key);
+    error_log('Expected key: ' . $expectedKey . ' (context: ' . $debugContext . ')');
+    error_log('Provided key: ' . $key . ' (context: ' . $debugContext . ')');
 
     if ($expectedKey === $key && $chrono != 360000) {
-        error_log('Security key validation successful');
+        error_log('Security key validation successful (context: ' . $debugContext . ')');
 
         // Le chrono reçu est en centièmes de seconde, on le divise par 100 pour l'affichage
         $chronoSeconds = $chrono / 100;
-        error_log('Chrono in seconds: ' . $chronoSeconds);
+        error_log('Chrono in seconds: ' . $chronoSeconds . ' (context: ' . $debugContext . ')');
 
         // Ouvrir le fichier des records
         $enregs = file($fichier);
-        error_log('Read ' . count($enregs) . ' existing records');
+        error_log('Read ' . count($enregs) . ' existing records (context: ' . $debugContext . ')');
 
         // Parcourir les records existants et insérer le nouveau au bon endroit
         foreach ($enregs as $cle => $enreg) {
@@ -206,14 +216,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // S'assurer que l'enregistrement est valide
             if (count($infos) < 2) {
-                error_log('Invalid record entry: ' . $enreg);
+                error_log('Invalid record entry: ' . $enreg . ' (context: ' . $debugContext . ')');
                 continue;
             }
 
             $recordPseudo = $infos[0];
             $recordChrono = floatval($infos[1]);
 
-            error_log("Record #$nRecord: $recordPseudo, $recordChrono vs $chronoSeconds");
+            error_log("Record #$nRecord: $recordPseudo, $recordChrono vs $chronoSeconds (context: $debugContext)");
 
             // Si le nouveau temps est meilleur, l'insérer ici
             if (!$ajoute && $recordChrono > $chronoSeconds) {
@@ -221,12 +231,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newRecord .= $pseudo . ',' . $chronoSeconds . PHP_EOL;
                 $ajoute = true;
                 $newRank = $nRecord;
-                error_log("New record inserted at position $nRecord");
+                error_log("New record inserted at position $nRecord (context: $debugContext)");
             }
 
             // Si on a déjà 10 records, ne pas en ajouter plus
             if ($nRecord >= 10) {
-                error_log('Already have 10 records, stopping');
+                error_log('Already have 10 records, stopping (context: ' . $debugContext . ')');
                 break;
             }
 
@@ -240,23 +250,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newRecord .= $pseudo . ',' . $chronoSeconds . PHP_EOL;
             $newRank = $nRecord + 1;
             $ajoute = true;
-            error_log("New record added at the end, position $newRank");
+            error_log("New record added at the end, position $newRank (context: $debugContext)");
         }
 
         // Sauvegarder les records mis à jour
         if (file_put_contents($fichier, $newRecord)) {
-            error_log('Successfully saved updated records');
+            error_log('Successfully saved updated records (context: ' . $debugContext . ')');
         } else {
-            error_log('Failed to save updated records');
+            error_log('Failed to save updated records (context: ' . $debugContext . ')');
         }
     } else {
-        error_log('Security key validation failed');
+        error_log('Security key validation failed (context: ' . $debugContext . ')');
         echo json_encode([
             'success' => false,
             'error' => 'Validation de sécurité échouée',
             'expectedKey' => $expectedKey,
             'providedKey' => $key,
-            'records' => []
+            'records' => [],
+            'debugContext' => $debugContext
         ]);
         exit;
     }
@@ -281,10 +292,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $response = [
         'success' => $ajoute,
         'newRank' => $newRank,
-        'records' => $records
+        'records' => $records,
+        'debugContext' => $debugContext // Inclure le contexte dans la réponse
     ];
 
-    error_log('Response: ' . json_encode($response));
+    error_log('Response for context ' . $debugContext . ': ' . json_encode($response));
     echo json_encode($response);
     exit;
 }

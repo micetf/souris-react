@@ -150,6 +150,7 @@ const App = () => {
                     pseudo: pseudo,
                     time: time,
                     token: circuitData.sessionToken,
+                    debugContext: `App_handleGameEnd_${uniqueId}`,
                 });
 
                 console.log("Record save result:", saveResult);

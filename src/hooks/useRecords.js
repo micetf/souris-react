@@ -75,7 +75,12 @@ const useRecords = (circuitNumber) => {
      * @returns {Promise<Object>} - Résultat de la sauvegarde
      */
     const saveRecord = useCallback(
-        async ({ pseudo, time, token }) => {
+        async ({
+            pseudo,
+            time,
+            token,
+            debugContext = "useRecords-default",
+        }) => {
             try {
                 setLoading(true);
                 setError(null);
@@ -84,66 +89,40 @@ const useRecords = (circuitNumber) => {
                     `Saving record for circuit ${circuitNumber}: ${time}s by ${pseudo}`
                 );
 
-                // Vérifier si c'est un nouveau record personnel
+                // 1. Vérifier si c'est un nouveau record personnel
                 const isNewPersonalRecord =
                     !personalRecord || time < personalRecord;
-                console.log(
-                    `Is new personal record: ${isNewPersonalRecord}, current: ${personalRecord}s, new: ${time}s`
-                );
 
-                // Sauvegarder localement si c'est un nouveau record personnel
+                // 2. Sauvegarder localement si c'est un nouveau record personnel
                 if (isNewPersonalRecord) {
-                    const saved = localStorage.localRecords.saveRecord(
-                        circuitNumber,
-                        time
-                    );
-                    console.log(`Saved locally: ${saved}`);
-
-                    // Mettre à jour l'état du record personnel
+                    localStorage.localRecords.saveRecord(circuitNumber, time);
+                    // Mettre à jour l'état du record personnel immédiatement
                     setPersonalRecord(time);
                 }
 
-                // Vérifier si le temps mérite d'être dans le top 10 global
+                // 3. Vérifier si le temps mérite d'être dans le top 10 global
                 const shouldSendToServer = isInTop10(time, globalRecords);
-                console.log(
-                    `Should send to server (top 10 candidate): ${shouldSendToServer}`
-                );
 
-                // Envoyer au serveur même si ce n'est pas un record personnel,
-                // tant que c'est potentiellement dans le top 10
                 if (shouldSendToServer) {
                     console.log(
                         `Sending record to server for circuit ${circuitNumber}`
                     );
+
+                    // 4. Envoyer au serveur uniquement si c'est un potentiel top 10
                     const result = await api.saveRecord({
                         parcours: circuitNumber,
                         pseudo,
                         chrono: time,
                         token,
+                        debugContext,
                     });
 
-                    console.log("Server response:", result);
-
-                    // Gérer les erreurs de l'API
-                    if (!result.success && result.error) {
-                        setError(`Erreur serveur: ${result.error}`);
-                        return {
-                            success: false,
-                            error: result.error,
-                            isNewPersonalRecord,
-                        };
-                    }
-
-                    // Mettre à jour immédiatement les records globaux avec la réponse du serveur
-                    if (result.records && Array.isArray(result.records)) {
-                        console.log(
-                            "Updating global records from server response:",
-                            result.records
-                        );
+                    // 5. Mettre à jour l'affichage avec le top 10 renvoyé
+                    if (result.success && result.records) {
                         setGlobalRecords(result.records);
                     }
 
-                    // Enregistrer ce record comme le dernier sauvegardé
+                    // 6. Enregistrer ce record comme le dernier sauvegardé
                     const savedRecord = {
                         time,
                         isNewPersonalRecord,
@@ -151,22 +130,15 @@ const useRecords = (circuitNumber) => {
                         success: result.success,
                     };
                     setLastSavedRecord(savedRecord);
-                    console.log("Last saved record updated:", savedRecord);
 
                     return {
-                        success: true,
+                        success: result.success,
                         isNewPersonalRecord,
                         newRank: result.newRank,
-                        records: result.records, // Retourner les records mis à jour
+                        records: result.records,
                     };
                 } else {
-                    // Pas besoin d'envoyer au serveur car ce n'est ni un record personnel
-                    // ni un potentiel top 10
-                    console.log(
-                        "Not sending to server - not a top 10 candidate"
-                    );
-
-                    // Mettre quand même à jour lastSavedRecord pour l'UI
+                    // Même si on n'envoie pas au serveur, mettre à jour lastSavedRecord pour l'UI
                     const savedRecord = {
                         time,
                         isNewPersonalRecord,
@@ -187,22 +159,12 @@ const useRecords = (circuitNumber) => {
                 setError(
                     "Impossible de sauvegarder le record. Veuillez réessayer plus tard."
                 );
-
-                return {
-                    success: false,
-                    error: err.message,
-                };
+                return { success: false, error: err.message };
             } finally {
                 setLoading(false);
             }
         },
-        [
-            circuitNumber,
-            fetchGlobalRecords,
-            personalRecord,
-            globalRecords,
-            isInTop10,
-        ]
+        [circuitNumber, personalRecord, globalRecords, isInTop10] // Dépendances nécessaires
     );
 
     /**
